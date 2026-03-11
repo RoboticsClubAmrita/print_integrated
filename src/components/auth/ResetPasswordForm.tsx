@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Lock, Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { authService } from '../../services/api';
 
 const ResetPasswordForm: React.FC = () => {
-    const navigate = useNavigate();
+
     const [searchParams] = useSearchParams();
     const token = searchParams.get('token');
 

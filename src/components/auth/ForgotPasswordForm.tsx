@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Mail, Loader2, ArrowLeft, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { authService } from '../../services/api';
 
 const ForgotPasswordForm: React.FC = () => {
-    const navigate = useNavigate();
+
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
