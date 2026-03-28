@@ -129,7 +129,7 @@ const UploadPage: React.FC = () => {
                 return;
             }
 
-            const totalCost = Number(finalPrice) * 10; // price per page × 10 pages
+            // const totalCost = Number(finalPrice) * 10; // price per page × 10 pages
 
             // Step 3: Create a print job in the backend
             // Field names must match backend CREATE_FIELDS whitelist exactly
