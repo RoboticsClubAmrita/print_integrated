@@ -48,7 +48,6 @@ export const webhookAPI = `${API}/payments/webhook`;
 
 
 const api = axios.create({
-    baseURL: API,
     headers: {
         'Content-Type': 'application/json',
     },
