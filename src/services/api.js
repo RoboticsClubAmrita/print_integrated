@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base URL from .env
-const API = import.meta.env.VITE_API_URL || 'http://13.60.246.95/api';
+const API = import.meta.env.VITE_API_URL || '/api';
 
 /* ================= AUTH ================= */
 export const loginAPI = `${API}/auth/login`;
