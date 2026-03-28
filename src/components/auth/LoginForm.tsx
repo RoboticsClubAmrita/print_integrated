@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
@@ -18,7 +18,8 @@ const LoginForm: React.FC = () => {
 
         try {
             const response = await authService.login({ email, password });
-            console.log("Login Success:", response);
+            console.log("Login Success - Full Response:", JSON.stringify(response, null, 2));
+            // Token and user data are stored automatically by authService.login()
             navigate('/dashboard');
         } catch (err: any) {
             console.error("Login Error:", err);
