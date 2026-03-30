@@ -84,4 +84,17 @@ export declare const printService: {
     upload: (formData: any) => Promise<any>;
     createJob: (jobData: any) => Promise<any>;
 };
+export declare const hardwareService: {
+    createLocation: (data: any) => Promise<any>;
+    getLocations: () => Promise<any>;
+    deleteLocation: (id: string) => Promise<any>;
+    createPrinter: (data: any) => Promise<any>;
+    getPrinters: (locationId: string) => Promise<any>;
+    updatePrinterStatus: (id: string, status: string) => Promise<any>;
+    deletePrinter: (id: string) => Promise<any>;
+    createStack: (data: any) => Promise<any>;
+    getStacks: (locationId: string) => Promise<any>;
+    updateStackStatus: (id: string, status: string) => Promise<any>;
+    deleteStack: (id: string) => Promise<any>;
+};
 export default api;

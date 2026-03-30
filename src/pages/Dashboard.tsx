@@ -37,7 +37,7 @@ const Dashboard: React.FC = () => {
             setError('');
             const storedUser = localStorage.getItem('user');
             const user = storedUser ? JSON.parse(storedUser) : {};
-            const userId = user?._id || user?.id || user?.userId || user?.user_id;
+            const userId = user?._id || user?.id || user?.userId || user?.userId;
 
             if (!userId) {
                 setError('Could not identify user. Please log in again.');

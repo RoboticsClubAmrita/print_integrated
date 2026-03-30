@@ -74,7 +74,7 @@ const UploadPage: React.FC = () => {
             // Step 1: Upload the file to backend
             const storedUser = localStorage.getItem('user');
             const user = storedUser ? JSON.parse(storedUser) : {};
-            const userId = user?._id || user?.id || user?.userId || user?.user_id;
+            const userId = user?._id || user?.id || user?.userId || user?.userId;
 
             const extractId = (obj: any): string | null => {
                 if (!obj) return null;
@@ -145,12 +145,12 @@ const UploadPage: React.FC = () => {
             });
             console.log('Job created (FULL RESPONSE):', JSON.stringify(jobResult, null, 2));
 
-            // Extract jobId — backend returns { MESSAGE, DATA: { job_id, referenceId } }
+            // Extract jobId — backend returns { MESSAGE, DATA: { jobId, referenceId } }
             const jobId =
-                jobResult?.DATA?.job_id ||
+                jobResult?.DATA?.jobId ||
                 jobResult?.DATA?.job?._id ||
                 jobResult?.DATA?._id ||
-                jobResult?.job_id ||
+                jobResult?.jobId ||
                 jobResult?._id ||
                 null;
 

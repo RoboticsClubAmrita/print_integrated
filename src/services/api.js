@@ -72,7 +72,7 @@ export const authService = {
         }
         if (data?.user) {
             localStorage.setItem('user', JSON.stringify(data.user));
-        } else if (data?._id || data?.userId || data?.user_id) {
+        } else if (data?._id || data?.userId || data?.userId) {
             localStorage.setItem('user', JSON.stringify(data));
         }
         return data;
@@ -234,6 +234,24 @@ export const paymentService = {
         const response = await api.get(getPaymentsByUserAPI(userId), { params });
         return response.data;
     },
+};
+
+// ── Hardware Service ──
+export const hardwareService = {
+    // Locations
+    createLocation: async (data) => (await api.post('/hardware/locations', data)).data,
+    getLocations: async () => (await api.get('/hardware/locations')).data,
+    deleteLocation: async (id) => (await api.delete(`/hardware/locations/${id}`)).data,
+    // Printers
+    createPrinter: async (data) => (await api.post('/hardware/printers', data)).data,
+    getPrinters: async (locationId) => (await api.get(`/hardware/printers/${locationId}`)).data,
+    updatePrinterStatus: async (id, status) => (await api.put(`/hardware/printers/${id}/status`, { status })).data,
+    deletePrinter: async (id) => (await api.delete(`/hardware/printers/${id}`)).data,
+    // Stacks
+    createStack: async (data) => (await api.post('/hardware/stacks', data)).data,
+    getStacks: async (locationId) => (await api.get(`/hardware/stacks/${locationId}`)).data,
+    updateStackStatus: async (id, status) => (await api.put(`/hardware/stacks/${id}/status`, { status })).data,
+    deleteStack: async (id) => (await api.delete(`/hardware/stacks/${id}`)).data,
 };
 
 // Keep printService for backward compatibility if ever needed
