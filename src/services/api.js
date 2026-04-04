@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Base URL from .env
-const API = import.meta.env.VITE_API_URL || '/api';
+// Base URL explicitly targeting local backend to avoid Vite proxy routing issues
+const API = 'http://localhost:5000/api';
 
 /* ================= AUTH ================= */
 export const loginAPI = `${API}/auth/login`;
@@ -239,19 +239,19 @@ export const paymentService = {
 // ── Hardware Service ──
 export const hardwareService = {
     // Locations
-    createLocation: async (data) => (await api.post('/hardware/locations', data)).data,
-    getLocations: async () => (await api.get('/hardware/locations')).data,
-    deleteLocation: async (id) => (await api.delete(`/hardware/locations/${id}`)).data,
+    createLocation: async (data) => (await api.post(`${API}/hardware/locations`, data)).data,
+    getLocations: async () => (await api.get(`${API}/hardware/locations`)).data,
+    deleteLocation: async (id) => (await api.delete(`${API}/hardware/locations/${id}`)).data,
     // Printers
-    createPrinter: async (data) => (await api.post('/hardware/printers', data)).data,
-    getPrinters: async (locationId) => (await api.get(`/hardware/printers/${locationId}`)).data,
-    updatePrinterStatus: async (id, status) => (await api.put(`/hardware/printers/${id}/status`, { status })).data,
-    deletePrinter: async (id) => (await api.delete(`/hardware/printers/${id}`)).data,
+    createPrinter: async (data) => (await api.post(`${API}/hardware/printers`, data)).data,
+    getPrinters: async (locationId) => (await api.get(`${API}/hardware/printers/${locationId}`)).data,
+    updatePrinterStatus: async (id, status) => (await api.put(`${API}/hardware/printers/${id}/status`, { status })).data,
+    deletePrinter: async (id) => (await api.delete(`${API}/hardware/printers/${id}`)).data,
     // Stacks
-    createStack: async (data) => (await api.post('/hardware/stacks', data)).data,
-    getStacks: async (locationId) => (await api.get(`/hardware/stacks/${locationId}`)).data,
-    updateStackStatus: async (id, status) => (await api.put(`/hardware/stacks/${id}/status`, { status })).data,
-    deleteStack: async (id) => (await api.delete(`/hardware/stacks/${id}`)).data,
+    createStack: async (data) => (await api.post(`${API}/hardware/stacks`, data)).data,
+    getStacks: async (locationId) => (await api.get(`${API}/hardware/stacks/${locationId}`)).data,
+    updateStackStatus: async (id, status) => (await api.put(`${API}/hardware/stacks/${id}/status`, { status })).data,
+    deleteStack: async (id) => (await api.delete(`${API}/hardware/stacks/${id}`)).data,
 };
 
 // Keep printService for backward compatibility if ever needed
