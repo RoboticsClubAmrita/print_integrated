@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base URL explicitly targeting local backend to avoid Vite proxy routing issues
-const API = 'http://localhost:5000/api';
+const API = 'http://13.60.246.95:5000/api';
 
 /* ================= AUTH ================= */
 export const loginAPI = `${API}/auth/login`;
