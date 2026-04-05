@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { hardwareService, jobService, userService } from '../services/api';
-import { Search, Filter, RefreshCw, FileText, Clock, CheckCircle, AlertCircle, Loader2, IndianRupee, MapPin, User, Calendar, ChevronDown, X } from 'lucide-react';
+import { Search, Filter, RefreshCw, FileText, Clock, CheckCircle, AlertCircle, Loader2, IndianRupee, MapPin, User, ChevronDown, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const STATUS_OPTIONS = ['ALL', 'PENDING', 'QUEUED', 'PRINTING', 'COMPLETED', 'PRINTED_PENDING_STACK', 'COLLECTED', 'CANCELLED'];

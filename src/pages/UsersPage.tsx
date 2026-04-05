@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { userService } from '../services/api';
-import { Users, Search, Shield, Mail, Phone, Trash2, Edit3, X, Loader2, CheckCircle, AlertCircle, Plus, Save } from 'lucide-react';
+import { Users, Search, Shield, Mail, Trash2, Edit3, X, Loader2, CheckCircle, AlertCircle, Plus, Save } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const ROLE_STYLES: Record<string, string> = {
@@ -21,7 +21,7 @@ const UsersPage: React.FC = () => {
     const [editingUser, setEditingUser] = useState<any>(null);
     const [editName, setEditName] = useState('');
     const [editPhone, setEditPhone] = useState('');
-    const [editRole, setEditRole] = useState('');
+
     const [saving, setSaving] = useState(false);
 
     // Add user modal
@@ -63,7 +63,7 @@ const UsersPage: React.FC = () => {
         setEditingUser(user);
         setEditName(user.name || '');
         setEditPhone(user.phone || '');
-        setEditRole(user.role || 'STUDENT');
+
     };
 
     const handleSaveEdit = async () => {
