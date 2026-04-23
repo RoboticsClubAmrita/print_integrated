@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { userService } from '../services/api';
-import { Users, Search, Shield, Mail, Trash2, Edit3, X, Loader2, CheckCircle, AlertCircle, Plus, Save, MoreVertical, UserX, UserCheck, Ban } from 'lucide-react';
+import { Users, Search, Shield, Mail, Trash2, Edit3, X, Loader2, CheckCircle, AlertCircle, Plus, Save, UserX, UserCheck } from 'lucide-react';
 
 const ROLE_STYLES: Record<string, string> = {
     ADMIN: 'bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400',
@@ -86,7 +86,7 @@ const UsersPage: React.FC = () => {
     const handleReactivate = async (userId: string) => {
         if (!confirm('Reactivate this user? They will be able to log in again.')) return;
         try {
-            await userService.reactivate(userId);
+            await (userService as any).reactivate(userId);
             loadUsers();
         } catch (e) { console.error(e); }
     };
@@ -97,7 +97,7 @@ const UsersPage: React.FC = () => {
         const secondConfirm = confirm(`🚨 FINAL WARNING: All data for "${userName}" will be permanently removed from the database. Type OK to confirm.`);
         if (!secondConfirm) return;
         try {
-            await userService.hardDelete(userId);
+            await (userService as any).hardDelete(userId);
             loadUsers();
         } catch (e) { console.error(e); }
     };
