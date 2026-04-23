@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, MapPin, ShoppingCart, Users, IndianRupee, Upload, LogOut, Loader2 } from 'lucide-react';
 import { authService } from '../../services/api';
+import ThemeToggle from '../ThemeToggle';
 
 const NAV_ITEMS = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -25,41 +26,52 @@ const AdminSidebar: React.FC = () => {
     };
 
     return (
-        <aside className="fixed left-0 top-0 h-screen w-[72px] hover:w-[220px] bg-surface/90 backdrop-blur-xl border-r border-white/5 flex flex-col items-center py-6 z-50 transition-all duration-300 group overflow-hidden">
-            {/* Logo */}
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center mb-8 shrink-0">
-                <span className="text-white font-bold text-lg">P</span>
+        <aside className="fixed left-0 top-0 h-screen w-[260px] flex flex-col py-6 z-50 border-r border-white/[0.06] bg-white/80 backdrop-blur-2xl dark:bg-[#0a0a0a]/80 dark:border-white/[0.04]">
+            <div className="px-5 mb-8">
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br from-[#0ea5e9] to-[#8b5cf6] shadow-lg shadow-[#0ea5e9]/20">
+                        <span className="text-white font-bold text-base font-heading">P</span>
+                    </div>
+                    <div>
+                        <p className="text-sm font-semibold leading-tight text-text font-heading">PrintPost</p>
+                        <p className="text-[11px] text-text-muted">Admin Console</p>
+                    </div>
+                </div>
             </div>
 
-            {/* Nav Items */}
             <nav className="flex-1 w-full space-y-1 px-3">
                 {NAV_ITEMS.map(item => (
                     <NavLink
                         key={item.path}
                         to={item.path}
                         className={({ isActive }) =>
-                            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
+                            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${
                                 isActive
-                                    ? 'bg-primary/10 text-primary'
-                                    : 'text-text-muted hover:text-white hover:bg-white/5'
+                                    ? 'bg-[#0ea5e9]/10 text-[#0ea5e9] dark:bg-[#0ea5e9]/10 dark:text-[#38bdf8] shadow-sm'
+                                    : 'text-text-secondary hover:text-text hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
                             }`
                         }
                     >
-                        <item.icon className="w-5 h-5 shrink-0" />
-                        <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">{item.label}</span>
+                        <item.icon className="w-[18px] h-[18px] shrink-0" />
+                        <span>{item.label}</span>
                     </NavLink>
                 ))}
             </nav>
 
-            {/* Logout */}
-            <button
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="flex items-center gap-3 px-3 py-2.5 mx-3 rounded-xl text-sm font-medium text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-all w-full whitespace-nowrap"
-            >
-                {isLoggingOut ? <Loader2 className="w-5 h-5 animate-spin shrink-0" /> : <LogOut className="w-5 h-5 shrink-0" />}
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">Logout</span>
-            </button>
+            <div className="px-3 space-y-2">
+                <div className="h-px bg-black/[0.06] dark:bg-white/[0.06]" />
+                <div className="flex items-center justify-between px-1">
+                    <button
+                        onClick={handleLogout}
+                        disabled={isLoggingOut}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-text-muted hover:text-red-500 hover:bg-red-500/5 transition-all duration-300"
+                    >
+                        {isLoggingOut ? <Loader2 className="w-5 h-5 animate-spin shrink-0" /> : <LogOut className="w-5 h-5 shrink-0" />}
+                        <span>Logout</span>
+                    </button>
+                    <ThemeToggle />
+                </div>
+            </div>
         </aside>
     );
 };

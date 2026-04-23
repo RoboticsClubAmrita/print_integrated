@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Use relative /api URL in production so Vercel can proxy over HTTPS
-const API = import.meta.env.MODE === 'production' ? '/api' : 'http://13.60.246.95:5000/api';
+const API = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_URL || 'http://13.60.246.95:5000/api');
 
 /* ================= AUTH ================= */
 export const loginAPI = `${API}/auth/login`;
@@ -15,6 +15,8 @@ export const getAllUsersAPI = `${API}/users/all`;
 export const getUserByIdAPI = (id) => `${API}/users/${id}`;
 export const editUserAPI = `${API}/users/edit`;
 export const deleteUserAPI = `${API}/users/delete`;
+export const reactivateUserAPI = `${API}/users/reactivate`;
+export const hardDeleteUserAPI = `${API}/users/hard-delete`;
 
 /* ================= FILE ================= */
 export const uploadFileAPI = `${API}/files/upload`;
@@ -129,6 +131,14 @@ export const userService = {
     },
     delete: async (userId) => {
         const response = await api.delete(deleteUserAPI, { data: { userId } });
+        return response.data;
+    },
+    reactivate: async (userId) => {
+        const response = await api.put(reactivateUserAPI, { userId });
+        return response.data;
+    },
+    hardDelete: async (userId) => {
+        const response = await api.delete(hardDeleteUserAPI, { data: { userId } });
         return response.data;
     },
 };
@@ -252,6 +262,14 @@ export const hardwareService = {
     getStacks: async (locationId) => (await api.get(`${API}/hardware/stacks/${locationId}`)).data,
     updateStackStatus: async (id, status) => (await api.put(`${API}/hardware/stacks/${id}/status`, { status })).data,
     deleteStack: async (id) => (await api.delete(`${API}/hardware/stacks/${id}`)).data,
+};
+
+// ── System Service ──
+export const systemService = {
+    resetSystem: async () => {
+        const response = await api.delete(`${API}/system/reset`);
+        return response.data;
+    }
 };
 
 // Keep printService for backward compatibility if ever needed

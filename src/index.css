@@ -1,55 +1,299 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-primary: #3b82f6;
-  --color-secondary: #8b5cf6;
-  --color-accent: #06b6d4;
-  --color-background: #0a0a0c;
-  --color-surface: #16161a;
-  --color-text: #f8fafc;
-  --color-text-muted: #94a3b8;
+  --color-primary: var(--color-primary-val);
+  --color-accent: var(--color-accent-val);
+  --color-accent-secondary: var(--color-accent-secondary-val);
+  --color-bg: var(--color-bg-val);
+  --color-bg-secondary: var(--color-bg-secondary-val);
+  --color-surface: var(--color-surface-val);
+  --color-surface-light: var(--color-surface-light-val);
+  --color-text: var(--color-text-val);
+  --color-text-secondary: var(--color-text-secondary-val);
+  --color-text-muted: var(--color-text-muted-val);
+  --color-border: var(--color-border-val);
+  --font-heading: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
 }
 
 :root {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --color-primary-val: #525252;
+  --color-accent-val: #0ea5e9;
+  --color-accent-secondary-val: #8b5cf6;
+  --color-bg-val: #FAFAFA;
+  --color-bg-secondary-val: #F0F0F0;
+  --color-surface-val: #FFFFFF;
+  --color-surface-light-val: #E5E5E5;
+  --color-text-val: #0A0A0A;
+  --color-text-secondary-val: #525252;
+  --color-text-muted-val: #A3A3A3;
+  --color-border-val: #E5E5E5;
+
+  font-family: var(--font-body);
   line-height: 1.5;
   font-weight: 400;
-
-  color: var(--color-text);
-  background-color: var(--color-background);
-
+  color: var(--color-text-val);
+  background-color: var(--color-bg-val);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+.dark {
+  --color-primary-val: #A3A3A3;
+  --color-accent-val: #38bdf8;
+  --color-accent-secondary-val: #a78bfa;
+  --color-bg-val: #050505;
+  --color-bg-secondary-val: #0a0a0a;
+  --color-surface-val: #0f0f0f;
+  --color-surface-light-val: #1a1a1a;
+  --color-text-val: #f0f0f0;
+  --color-text-secondary-val: #d4d4d4;
+  --color-text-muted-val: #737373;
+  --color-border-val: #1e1e1e;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-val) transparent;
+}
+
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background: var(--color-bg-val);
+  transition: background 0.4s ease, color 0.4s ease;
 }
 
 #root {
   width: 100%;
 }
 
-.glass {
-  background: rgba(22, 22, 26, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+/* ─── Heading font ─── */
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.03em;
 }
 
-.gradient-text {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+/* ─── Card ─── */
+.card {
+  background: var(--color-surface-val);
+  border: 1px solid var(--color-border-val);
+  border-radius: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.gradient-bg {
-  background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.1), transparent),
-              radial-gradient(circle at bottom right, rgba(139, 92, 246, 0.1), transparent);
+.card:hover {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.dark .card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  background: rgba(15, 15, 15, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.dark .card:hover {
+  box-shadow: 0 12px 40px rgba(14, 165, 233, 0.06), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Glass Card (for auth forms) ─── */
+.card-glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark .card-glass {
+  background: rgba(15, 15, 15, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* ─── Pill Button ─── */
+.btn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  border-radius: 999px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid var(--color-border-val);
+  background: var(--color-surface-val);
+  color: var(--color-text-val);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-pill::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(139, 92, 246, 0.1));
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.btn-pill:hover::before {
+  opacity: 1;
+}
+
+.btn-pill:hover {
+  background: var(--color-text-val);
+  color: var(--color-bg-val);
+  border-color: var(--color-text-val);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.dark .btn-pill {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark .btn-pill:hover {
+  background: #f0f0f0;
+  color: #050505;
+  box-shadow: 0 8px 24px rgba(14, 165, 233, 0.15);
+}
+
+.btn-pill-filled {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  border-radius: 999px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid var(--color-text-val);
+  background: var(--color-text-val);
+  color: var(--color-bg-val);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-pill-filled:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.dark .btn-pill-filled {
+  background: #f0f0f0;
+  color: #050505;
+  border-color: #f0f0f0;
+}
+
+.dark .btn-pill-filled:hover {
+  box-shadow: 0 8px 24px rgba(14, 165, 233, 0.2);
+}
+
+/* ─── 3D Scene ─── */
+.scene-3d {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+
+/* ─── Grain Overlay ─── */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+.dark .grain-overlay {
+  opacity: 0.04;
+}
+
+/* ─── Horizontal Scroll Cards ─── */
+.scroll-cards {
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  padding: 8px 0 24px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scroll-cards::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-cards > * {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+/* ─── Smooth scroll ─── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ─── Selection ─── */
+::selection {
+  background: rgba(14, 165, 233, 0.2);
+  color: var(--color-text-val);
+}
+
+/* ─── Focus ring ─── */
+*:focus-visible {
+  outline: 2px solid rgba(14, 165, 233, 0.4);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ─── Input styles ─── */
+input[type="email"],
+input[type="password"],
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: rgba(14, 165, 233, 0.4);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.08);
 }

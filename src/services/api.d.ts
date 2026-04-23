@@ -97,4 +97,7 @@ export declare const hardwareService: {
     updateStackStatus: (id: string, status: string) => Promise<any>;
     deleteStack: (id: string) => Promise<any>;
 };
+export declare const systemService: {
+    resetSystem: () => Promise<any>;
+};
 export default api;

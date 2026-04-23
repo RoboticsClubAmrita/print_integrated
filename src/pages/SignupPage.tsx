@@ -1,22 +1,25 @@
-﻿import React from 'react';
+import React from 'react';
 import SignupForm from '../components/auth/SignupForm';
-import { Printer } from 'lucide-react';
+import ThemeToggle from '../components/ThemeToggle';
+import Reveal from '../components/Reveal';
 
 const SignupPage: React.FC = () => {
     return (
-        <div className="min-h-screen w-full flex items-center justify-center p-4 gradient-bg relative overflow-hidden">
-            {/* Decorative Circles */}
-            <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/20 rounded-full blur-[120px]" />
-            <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent/20 rounded-full blur-[120px]" />
+        <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden">
+            <ThemeToggle className="absolute top-6 right-6 z-10" />
 
-            <div className="w-full flex flex-col items-center">
-                <div className="mb-8 flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-secondary to-accent rounded-xl flex items-center justify-center shadow-lg">
-                        <Printer className="text-white w-7 h-7" />
+            <div className="w-full flex flex-col items-center relative z-10">
+                <Reveal>
+                    <div className="mb-10 flex flex-col items-center gap-4">
+                        <div className="w-14 h-14 bg-text rounded-2xl flex items-center justify-center shadow-lg">
+                            <span className="text-bg font-bold text-2xl font-heading">P</span>
+                        </div>
+                        <h1 className="text-3xl font-bold tracking-[-0.04em] text-text font-heading">PrintPost</h1>
                     </div>
-                    <h1 className="text-2xl font-bold tracking-tight">PrintPost</h1>
-                </div>
-                <SignupForm />
+                </Reveal>
+                <Reveal delay={0.15}>
+                    <SignupForm />
+                </Reveal>
             </div>
         </div>
     );

@@ -1,3 +1,4 @@
+import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -11,7 +12,8 @@ import UsersPage from './pages/UsersPage';
 import PricingPage from './pages/PricingPage';
 import AdminLayout from './components/layout/AdminLayout';
 
-// Wrapper to apply admin layout to authenticated pages
+const Background3D = React.lazy(() => import('./components/Background3D'));
+
 const WithAdmin = ({ children }: { children: React.ReactNode }) => (
     <AdminLayout>{children}</AdminLayout>
 );
@@ -19,14 +21,17 @@ const WithAdmin = ({ children }: { children: React.ReactNode }) => (
 function App() {
     return (
         <BrowserRouter>
+            <Suspense fallback={null}>
+                <Background3D />
+            </Suspense>
+            <div className="grain-overlay" />
+
             <Routes>
-                {/* Auth pages - no sidebar */}
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-                {/* Admin pages - with sidebar */}
                 <Route path="/dashboard" element={<WithAdmin><Dashboard /></WithAdmin>} />
                 <Route path="/orders" element={<WithAdmin><OrdersPage /></WithAdmin>} />
                 <Route path="/users" element={<WithAdmin><UsersPage /></WithAdmin>} />

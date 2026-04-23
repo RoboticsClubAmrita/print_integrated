@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { Mail, Loader2, ArrowLeft, Send } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { authService } from '../../services/api';
 
 const ForgotPasswordForm: React.FC = () => {
-
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -15,16 +13,11 @@ const ForgotPasswordForm: React.FC = () => {
         e.preventDefault();
         setLoading(true);
         setError('');
-
         try {
             await authService.forgotPassword(email);
             setSuccess(true);
         } catch (err: any) {
-            console.error("Forgot Password Error:", err);
-            const message = err.response?.data?.MESSAGE ||
-                err.response?.data?.message ||
-                err.message ||
-                'Failed to send reset link. Please try again.';
+            const message = err.response?.data?.MESSAGE || err.response?.data?.message || err.message || 'Failed to send reset link.';
             setError(message);
         } finally {
             setLoading(false);
@@ -33,85 +26,46 @@ const ForgotPasswordForm: React.FC = () => {
 
     if (success) {
         return (
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="glass p-8 rounded-2xl w-full max-w-md shadow-2xl text-center"
-            >
-                <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Send className="w-8 h-8 text-green-400" />
+            <div className="card p-10 w-full max-w-md text-center backdrop-blur-md bg-surface/80 dark:bg-surface/60">
+                <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Send className="w-8 h-8 text-green-600 dark:text-green-400" />
                 </div>
-                <h2 className="text-3xl font-bold mb-4 gradient-text">Check Your Email</h2>
-                <p className="text-text-muted mb-8">
-                    We've sent a password reset link to <span className="text-white font-medium">{email}</span>.
-                    Please check your inbox and follow the instructions.
+                <h2 className="text-3xl font-bold mb-4 text-text font-heading tracking-[-0.03em]">Check Your Email</h2>
+                <p className="text-text-muted mb-8 text-sm">
+                    We've sent a password reset link to <span className="text-text font-medium">{email}</span>.
                 </p>
-                <Link
-                    to="/login"
-                    className="flex items-center justify-center gap-2 text-secondary hover:underline font-medium"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    Back to Login
+                <Link to="/login" className="btn-pill justify-center w-full">
+                    <ArrowLeft className="w-4 h-4" /> Back to Login
                 </Link>
-            </motion.div>
+            </div>
         );
     }
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass p-8 rounded-2xl w-full max-w-md shadow-2xl"
-        >
-            <Link
-                to="/login"
-                className="flex items-center gap-2 text-text-muted hover:text-white transition-colors text-sm mb-6 inline-flex"
-            >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Login
+        <div className="card-glass p-10 w-full max-w-md">
+            <Link to="/login" className="flex items-center gap-2 text-text-muted hover:text-text transition-colors duration-200 text-sm mb-6 inline-flex">
+                <ArrowLeft className="w-4 h-4" /> Back to Login
             </Link>
-
-            <h2 className="text-3xl font-bold mb-2 gradient-text">Forgot Password?</h2>
-            <p className="text-text-muted mb-8">Enter your email and we'll send you a link to reset your password.</p>
+            <h2 className="text-3xl font-bold mb-2 text-text font-heading tracking-[-0.03em]">Forgot Password?</h2>
+            <p className="text-text-muted mb-8 text-sm">Enter your email and we'll send you a reset link.</p>
 
             {error && (
-                <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-xl mb-6 text-sm text-center">
-                    {error}
-                </div>
+                <div className="bg-accent/5 border border-accent/20 text-accent p-3 rounded-xl mb-6 text-sm text-center">{error}</div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
-                    <label className="text-sm font-medium text-text-muted ml-1">Email Address</label>
+                    <label className="text-sm font-medium text-text-secondary ml-1 font-heading">Email Address</label>
                     <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                        <input
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-surface border border-white/10 rounded-xl py-3 pl-11 pr-4 focus:ring-2 focus:ring-primary/50 outline-none transition-all"
-                            placeholder="name@example.com"
-                            required
-                        />
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+                        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-bg border border-border rounded-full py-3 pl-11 pr-5 text-text text-sm focus:outline-none focus:border-text/40 focus:ring-2 focus:ring-text/5 transition-all duration-300" placeholder="name@example.com" required />
                     </div>
                 </div>
-
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 group shadow-lg shadow-primary/20"
-                >
-                    {loading ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                        <>
-                            Send Reset Link
-                            <Send className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                        </>
-                    )}
+                <button type="submit" disabled={loading} className="btn-pill-filled w-full justify-center py-3.5 text-[15px]">
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-4 h-4" /> Send Reset Link</>}
                 </button>
             </form>
-        </motion.div>
+        </div>
     );
 };
 
