@@ -482,7 +482,7 @@ const OrdersPage: React.FC = () => {
                                 <button
                                     onClick={handleConfirmStatus}
                                     disabled={!canConfirmStatus || statusSaving}
-                                    className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg py-2.5 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm mt-2"
+                                    className="w-full bg-accent hover:bg-accent/90 disabled:bg-accent/40 disabled:cursor-not-allowed text-white font-medium rounded-lg py-2.5 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm mt-2"
                                 >
                                     {statusSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
                                     Confirm → {statusTarget}

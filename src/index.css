@@ -353,3 +353,16 @@ textarea {
   border-color: rgba(14, 165, 233, 0.4);
   box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.08);
 }
+
+/* Native <select> dropdown option lists render on an OS-drawn popup that
+   ignores our dark theme text color, leaving light text on a white popup.
+   Force readable dark-on-white options in every theme. */
+select option {
+  color: #1f2937;
+  background-color: #ffffff;
+}
+select option:checked,
+select option:hover {
+  background-color: #e0f2fe;
+  color: #0c4a6e;
+}
