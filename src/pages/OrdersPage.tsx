@@ -1,14 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { hardwareService, jobService, userService } from '../services/api';
 import { Search, Filter, RefreshCw, FileText, Clock, CheckCircle, AlertCircle, Loader2, IndianRupee, MapPin, User, ChevronDown, X, ArrowRightCircle } from 'lucide-react';
 
 const STATUS_OPTIONS = ['ALL', 'PENDING', 'QUEUED', 'PRINTING', 'COMPLETED', 'PRINTED_PENDING_STACK', 'COLLECTED', 'CANCELLED'];
 
-// All statuses an admin can manually move a job to, and what extra data
-// (if any) that transition requires — mirrors the printer/stack status
-// toggles on the Hardware & Locations page, but prompts for the fields
-// the backend needs for that specific next state.
-const NEXT_STATUS_OPTIONS = ['QUEUED', 'PRINTING', 'COMPLETED', 'PRINTED_PENDING_STACK', 'COLLECTED', 'CANCELLED', 'FAILED'];
+// What extra data each target status needs before it can be applied.
+// Used by the one-click status-badge chain to decide whether to advance
+// instantly or first pop up a small form asking for that data.
 const STATUS_REQUIRES: Record<string, 'printer' | 'stack' | 'reason' | null> = {
     QUEUED: null,
     PRINTING: 'printer',
@@ -71,79 +69,73 @@ const OrdersPage: React.FC = () => {
     const [dateTo, setDateTo] = useState('');
 
     const [selectedJob, setSelectedJob] = useState<any>(null);
-    const [nextStatus, setNextStatus] = useState('');
+
+    // Small dedicated popup that only appears when advancing a status needs
+    // extra data (a printer, a stack, or a reason). Never opens the details card.
+    const [statusJob, setStatusJob] = useState<any>(null);   // the job being advanced
+    const [statusTarget, setStatusTarget] = useState('');    // the next status
     const [statusReason, setStatusReason] = useState('');
     const [statusPrinterId, setStatusPrinterId] = useState('');
     const [statusStackId, setStatusStackId] = useState('');
     const [jobPrinters, setJobPrinters] = useState<any[]>([]);
     const [jobStacks, setJobStacks] = useState<any[]>([]);
     const [statusSaving, setStatusSaving] = useState(false);
-    const presetNextStatusRef = useRef('');
 
     useEffect(() => { loadInitialData(); }, []);
 
-    useEffect(() => {
-        // Reset the status-change form whenever a different order is opened,
-        // unless a one-click chain advance already picked the next status.
-        const preset = presetNextStatusRef.current;
-        presetNextStatusRef.current = '';
-        setNextStatus(preset); setStatusReason(''); setStatusPrinterId(''); setStatusStackId('');
-        setJobPrinters([]); setJobStacks([]);
-        const locId = selectedJob?.locationId?._id || selectedJob?.locationId;
-        if (locId) {
-            hardwareService.getPrinters(locId).then(d => setJobPrinters(d?.DATA || d || [])).catch(() => {});
-            hardwareService.getStacks(locId).then(d => setJobStacks(d?.DATA || d || [])).catch(() => {});
-        }
-    }, [selectedJob]);
-
-    const requirement = nextStatus ? STATUS_REQUIRES[nextStatus] : null;
-    const canConfirmStatus = nextStatus && (
-        requirement === 'printer' ? !!statusPrinterId :
-        requirement === 'stack' ? !!statusStackId :
-        requirement === 'reason' ? statusReason.trim().length > 0 :
+    const statusRequirement = statusTarget ? STATUS_REQUIRES[statusTarget] : null;
+    const canConfirmStatus = !!statusTarget && (
+        statusRequirement === 'printer' ? !!statusPrinterId :
+        statusRequirement === 'stack' ? !!statusStackId :
+        statusRequirement === 'reason' ? statusReason.trim().length > 0 :
         true
     );
 
-    // One-click advance to the next status in the chain (mirrors the
-    // Available/Occupied toggle on Hardware & Locations). If that next
-    // status needs extra data, open the detail modal with it preselected
-    // instead of applying it blind.
+    const applyStatus = async (job: any, next: string, extra: Record<string, any> = {}) => {
+        if (next === 'CANCELLED') {
+            await jobService.cancel({ jobId: job._id, reason: extra.failureReason || '' });
+        } else {
+            await jobService.edit({ jobId: job._id, status: next, ...extra });
+        }
+        await loadInitialData();
+    };
+
+    // Click the status badge → escalate one step in the chain (like the
+    // Available/Occupied toggle on Hardware & Locations). No extra data →
+    // apply instantly, inline. Needs data → open the small data popup only.
     const handleStatusBadgeClick = async (e: React.MouseEvent, job: any) => {
         e.stopPropagation();
         const next = ORDER_STATUS_CHAIN[job.status];
         if (!next) return;
         if (!STATUS_REQUIRES[next]) {
             try {
-                await jobService.edit({ jobId: job._id, status: next });
-                await loadInitialData();
+                await applyStatus(job, next);
             } catch (err) { console.error('Failed to advance status', err); }
             return;
         }
-        if (selectedJob?._id === job._id) {
-            setNextStatus(next);
-        } else {
-            presetNextStatusRef.current = next;
-            setSelectedJob(job);
+        // Open the data popup, preloading this location's printers/stacks.
+        setStatusJob(job);
+        setStatusTarget(next);
+        setStatusReason(''); setStatusPrinterId(''); setStatusStackId('');
+        setJobPrinters([]); setJobStacks([]);
+        const locId = job?.locationId?._id || job?.locationId;
+        if (locId) {
+            hardwareService.getPrinters(locId).then(d => setJobPrinters(d?.DATA || d || [])).catch(() => {});
+            hardwareService.getStacks(locId).then(d => setJobStacks(d?.DATA || d || [])).catch(() => {});
         }
     };
 
-    const handleChangeStatus = async () => {
-        if (!selectedJob || !nextStatus || !canConfirmStatus) return;
+    const handleConfirmStatus = async () => {
+        if (!statusJob || !statusTarget || !canConfirmStatus) return;
         setStatusSaving(true);
         try {
-            if (nextStatus === 'CANCELLED') {
-                await jobService.cancel({ jobId: selectedJob._id, reason: statusReason.trim() });
-            } else {
-                await jobService.edit({
-                    jobId: selectedJob._id,
-                    status: nextStatus,
-                    ...(requirement === 'printer' ? { printerId: statusPrinterId } : {}),
-                    ...(requirement === 'stack' ? { stackId: statusStackId } : {}),
-                    ...(requirement === 'reason' ? { failureReason: statusReason.trim() } : {}),
-                });
-            }
-            await loadInitialData();
-            setSelectedJob(null);
+            const extra =
+                statusRequirement === 'printer' ? { printerId: statusPrinterId } :
+                statusRequirement === 'stack' ? { stackId: statusStackId } :
+                statusRequirement === 'reason' ? { failureReason: statusReason.trim() } :
+                {};
+            await applyStatus(statusJob, statusTarget, extra);
+            setStatusJob(null); setStatusTarget('');
         } catch (e) {
             console.error('Failed to change status', e);
         } finally {
@@ -394,56 +386,65 @@ const OrdersPage: React.FC = () => {
                                 {selectedJob.completedAt && <DetailRow label="Completed At" value={new Date(selectedJob.completedAt).toLocaleString('en-IN')} />}
                                 {selectedJob.collectedAt && <DetailRow label="Collected At" value={new Date(selectedJob.collectedAt).toLocaleString('en-IN')} />}
                             </div>
+                        </div>
+                    </div>
+                )}
 
-                            <div className="mt-6 pt-6 border-t border-border">
-                                <h4 className="font-semibold flex items-center gap-2 text-text mb-3">
-                                    <ArrowRightCircle className="w-4 h-4 text-primary" /> Change Status
-                                </h4>
-                                <div className="space-y-3">
-                                    <select
-                                        value={nextStatus}
-                                        onChange={e => setNextStatus(e.target.value)}
-                                        className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary transition-colors duration-200"
-                                        style={{ colorScheme: 'light' }}
-                                    >
-                                        <option value="">Select next status…</option>
-                                        {NEXT_STATUS_OPTIONS.filter(s => s !== selectedJob.status).map(s => (
-                                            <option key={s} value={s}>{s}</option>
-                                        ))}
-                                    </select>
+                {/* Status-advance data popup — only shown when the next status
+                    in the chain needs a printer, stack, or reason. */}
+                {statusJob && (
+                    <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => !statusSaving && setStatusJob(null)}>
+                        <div className="card p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-between mb-1">
+                                <h3 className="text-lg font-bold text-text flex items-center gap-2">
+                                    <ArrowRightCircle className="w-5 h-5 text-primary" /> Move to {statusTarget}
+                                </h3>
+                                <button onClick={() => setStatusJob(null)} disabled={statusSaving} className="p-2 hover:bg-bg-secondary rounded-full transition-colors duration-200"><X className="w-5 h-5 text-text-muted" /></button>
+                            </div>
+                            <p className="text-xs text-text-muted mb-5">
+                                {statusJob.referenceId || statusJob._id?.slice(-8)} · {statusJob.status} → {statusTarget}
+                            </p>
 
-                                    {requirement === 'printer' && (
+                            <div className="space-y-3">
+                                {statusRequirement === 'printer' && (
+                                    <div>
+                                        <label className="block text-xs text-text-muted mb-1.5">Assign printer</label>
                                         <select value={statusPrinterId} onChange={e => setStatusPrinterId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary" style={{ colorScheme: 'light' }}>
                                             <option value="">Choose a printer…</option>
                                             {jobPrinters.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
                                         </select>
-                                    )}
-                                    {requirement === 'stack' && (
+                                    </div>
+                                )}
+                                {statusRequirement === 'stack' && (
+                                    <div>
+                                        <label className="block text-xs text-text-muted mb-1.5">Assign stack / tray</label>
                                         <select value={statusStackId} onChange={e => setStatusStackId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary" style={{ colorScheme: 'light' }}>
                                             <option value="">Choose a stack…</option>
                                             {jobStacks.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
                                         </select>
-                                    )}
-                                    {requirement === 'reason' && (
+                                    </div>
+                                )}
+                                {statusRequirement === 'reason' && (
+                                    <div>
+                                        <label className="block text-xs text-text-muted mb-1.5">{statusTarget === 'CANCELLED' ? 'Reason for cancellation' : 'Reason for failure'}</label>
                                         <input
                                             value={statusReason}
                                             onChange={e => setStatusReason(e.target.value)}
-                                            placeholder={nextStatus === 'CANCELLED' ? 'Reason for cancellation…' : 'Reason for failure…'}
+                                            autoFocus
+                                            placeholder="Enter a reason…"
                                             className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary"
                                         />
-                                    )}
+                                    </div>
+                                )}
 
-                                    {nextStatus && (
-                                        <button
-                                            onClick={handleChangeStatus}
-                                            disabled={!canConfirmStatus || statusSaving}
-                                            className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg py-2.5 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm"
-                                        >
-                                            {statusSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
-                                            Confirm → {nextStatus}
-                                        </button>
-                                    )}
-                                </div>
+                                <button
+                                    onClick={handleConfirmStatus}
+                                    disabled={!canConfirmStatus || statusSaving}
+                                    className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg py-2.5 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm mt-2"
+                                >
+                                    {statusSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
+                                    Confirm → {statusTarget}
+                                </button>
                             </div>
                         </div>
                     </div>
