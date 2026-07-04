@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { hardwareService, jobService, userService } from '../services/api';
 import { Search, Filter, RefreshCw, FileText, Clock, CheckCircle, AlertCircle, Loader2, IndianRupee, MapPin, User, ChevronDown, X, ArrowRightCircle } from 'lucide-react';
 
@@ -17,6 +17,21 @@ const STATUS_REQUIRES: Record<string, 'printer' | 'stack' | 'reason' | null> = {
     COLLECTED: null,
     CANCELLED: 'reason',
     FAILED: 'reason',
+};
+
+// The single "next" status for the one-click chain on the status badge —
+// same idea as the Available/Occupied toggle on Hardware & Locations, but
+// following a fixed progression instead of a binary flip. Terminal states
+// (null) do nothing when clicked.
+const ORDER_STATUS_CHAIN: Record<string, string | null> = {
+    PENDING: 'QUEUED',
+    QUEUED: 'PRINTING',
+    PRINTING: 'COMPLETED',
+    PRINTED_PENDING_STACK: 'COMPLETED',
+    COMPLETED: 'COLLECTED',
+    COLLECTED: null,
+    CANCELLED: null,
+    FAILED: null,
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -63,12 +78,16 @@ const OrdersPage: React.FC = () => {
     const [jobPrinters, setJobPrinters] = useState<any[]>([]);
     const [jobStacks, setJobStacks] = useState<any[]>([]);
     const [statusSaving, setStatusSaving] = useState(false);
+    const presetNextStatusRef = useRef('');
 
     useEffect(() => { loadInitialData(); }, []);
 
     useEffect(() => {
-        // Reset the status-change form whenever a different order is opened.
-        setNextStatus(''); setStatusReason(''); setStatusPrinterId(''); setStatusStackId('');
+        // Reset the status-change form whenever a different order is opened,
+        // unless a one-click chain advance already picked the next status.
+        const preset = presetNextStatusRef.current;
+        presetNextStatusRef.current = '';
+        setNextStatus(preset); setStatusReason(''); setStatusPrinterId(''); setStatusStackId('');
         setJobPrinters([]); setJobStacks([]);
         const locId = selectedJob?.locationId?._id || selectedJob?.locationId;
         if (locId) {
@@ -84,6 +103,29 @@ const OrdersPage: React.FC = () => {
         requirement === 'reason' ? statusReason.trim().length > 0 :
         true
     );
+
+    // One-click advance to the next status in the chain (mirrors the
+    // Available/Occupied toggle on Hardware & Locations). If that next
+    // status needs extra data, open the detail modal with it preselected
+    // instead of applying it blind.
+    const handleStatusBadgeClick = async (e: React.MouseEvent, job: any) => {
+        e.stopPropagation();
+        const next = ORDER_STATUS_CHAIN[job.status];
+        if (!next) return;
+        if (!STATUS_REQUIRES[next]) {
+            try {
+                await jobService.edit({ jobId: job._id, status: next });
+                await loadInitialData();
+            } catch (err) { console.error('Failed to advance status', err); }
+            return;
+        }
+        if (selectedJob?._id === job._id) {
+            setNextStatus(next);
+        } else {
+            presetNextStatusRef.current = next;
+            setSelectedJob(job);
+        }
+    };
 
     const handleChangeStatus = async () => {
         if (!selectedJob || !nextStatus || !canConfirmStatus) return;
@@ -226,13 +268,13 @@ const OrdersPage: React.FC = () => {
                             <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by reference ID or file name..." className={`${inputClass} pl-10 pr-4`} />
                         </div>
                         <div className="relative">
-                            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={selectClass}>
+                            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={selectClass} style={{ colorScheme: 'light' }}>
                                 {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s === 'ALL' ? 'All Statuses' : s}</option>)}
                             </select>
                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
                         </div>
                         <div className="relative">
-                            <select value={userFilter} onChange={e => setUserFilter(e.target.value)} className={selectClass}>
+                            <select value={userFilter} onChange={e => setUserFilter(e.target.value)} className={selectClass} style={{ colorScheme: 'light' }}>
                                 <option value="ALL">All Users</option>
                                 {users.map(u => <option key={u._id} value={u._id}>{u.name || u.email}</option>)}
                             </select>
@@ -303,9 +345,14 @@ const OrdersPage: React.FC = () => {
                                                     <IndianRupee className="w-3 h-3" />{job.totalCost?.toFixed(2) || '0.00'}
                                                 </td>
                                                 <td className="p-4 text-center">
-                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md ${styleClass}`}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => handleStatusBadgeClick(e, job)}
+                                                        title={ORDER_STATUS_CHAIN[status] ? `Advance to ${ORDER_STATUS_CHAIN[status]}` : 'Final status'}
+                                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md ${styleClass} ${ORDER_STATUS_CHAIN[status] ? 'cursor-pointer hover:opacity-75' : 'cursor-default'} transition-opacity duration-150`}
+                                                    >
                                                         {icon}{status}
-                                                    </span>
+                                                    </button>
                                                 </td>
                                                 <td className="p-4 text-right text-text-muted text-xs">
                                                     {new Date(job.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -357,6 +404,7 @@ const OrdersPage: React.FC = () => {
                                         value={nextStatus}
                                         onChange={e => setNextStatus(e.target.value)}
                                         className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary transition-colors duration-200"
+                                        style={{ colorScheme: 'light' }}
                                     >
                                         <option value="">Select next status…</option>
                                         {NEXT_STATUS_OPTIONS.filter(s => s !== selectedJob.status).map(s => (
@@ -365,13 +413,13 @@ const OrdersPage: React.FC = () => {
                                     </select>
 
                                     {requirement === 'printer' && (
-                                        <select value={statusPrinterId} onChange={e => setStatusPrinterId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary">
+                                        <select value={statusPrinterId} onChange={e => setStatusPrinterId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary" style={{ colorScheme: 'light' }}>
                                             <option value="">Choose a printer…</option>
                                             {jobPrinters.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
                                         </select>
                                     )}
                                     {requirement === 'stack' && (
-                                        <select value={statusStackId} onChange={e => setStatusStackId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary">
+                                        <select value={statusStackId} onChange={e => setStatusStackId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary" style={{ colorScheme: 'light' }}>
                                             <option value="">Choose a stack…</option>
                                             {jobStacks.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
                                         </select>
