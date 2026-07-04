@@ -1,8 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { hardwareService, jobService, userService } from '../services/api';
-import { Search, Filter, RefreshCw, FileText, Clock, CheckCircle, AlertCircle, Loader2, IndianRupee, MapPin, User, ChevronDown, X } from 'lucide-react';
+import { Search, Filter, RefreshCw, FileText, Clock, CheckCircle, AlertCircle, Loader2, IndianRupee, MapPin, User, ChevronDown, X, ArrowRightCircle } from 'lucide-react';
 
 const STATUS_OPTIONS = ['ALL', 'PENDING', 'QUEUED', 'PRINTING', 'COMPLETED', 'PRINTED_PENDING_STACK', 'COLLECTED', 'CANCELLED'];
+
+// All statuses an admin can manually move a job to, and what extra data
+// (if any) that transition requires — mirrors the printer/stack status
+// toggles on the Hardware & Locations page, but prompts for the fields
+// the backend needs for that specific next state.
+const NEXT_STATUS_OPTIONS = ['QUEUED', 'PRINTING', 'COMPLETED', 'PRINTED_PENDING_STACK', 'COLLECTED', 'CANCELLED', 'FAILED'];
+const STATUS_REQUIRES: Record<string, 'printer' | 'stack' | 'reason' | null> = {
+    QUEUED: null,
+    PRINTING: 'printer',
+    COMPLETED: 'stack',
+    PRINTED_PENDING_STACK: null,
+    COLLECTED: null,
+    CANCELLED: 'reason',
+    FAILED: 'reason',
+};
 
 const STATUS_STYLES: Record<string, string> = {
     PENDING:   'bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400',
@@ -41,8 +56,58 @@ const OrdersPage: React.FC = () => {
     const [dateTo, setDateTo] = useState('');
 
     const [selectedJob, setSelectedJob] = useState<any>(null);
+    const [nextStatus, setNextStatus] = useState('');
+    const [statusReason, setStatusReason] = useState('');
+    const [statusPrinterId, setStatusPrinterId] = useState('');
+    const [statusStackId, setStatusStackId] = useState('');
+    const [jobPrinters, setJobPrinters] = useState<any[]>([]);
+    const [jobStacks, setJobStacks] = useState<any[]>([]);
+    const [statusSaving, setStatusSaving] = useState(false);
 
     useEffect(() => { loadInitialData(); }, []);
+
+    useEffect(() => {
+        // Reset the status-change form whenever a different order is opened.
+        setNextStatus(''); setStatusReason(''); setStatusPrinterId(''); setStatusStackId('');
+        setJobPrinters([]); setJobStacks([]);
+        const locId = selectedJob?.locationId?._id || selectedJob?.locationId;
+        if (locId) {
+            hardwareService.getPrinters(locId).then(d => setJobPrinters(d?.DATA || d || [])).catch(() => {});
+            hardwareService.getStacks(locId).then(d => setJobStacks(d?.DATA || d || [])).catch(() => {});
+        }
+    }, [selectedJob]);
+
+    const requirement = nextStatus ? STATUS_REQUIRES[nextStatus] : null;
+    const canConfirmStatus = nextStatus && (
+        requirement === 'printer' ? !!statusPrinterId :
+        requirement === 'stack' ? !!statusStackId :
+        requirement === 'reason' ? statusReason.trim().length > 0 :
+        true
+    );
+
+    const handleChangeStatus = async () => {
+        if (!selectedJob || !nextStatus || !canConfirmStatus) return;
+        setStatusSaving(true);
+        try {
+            if (nextStatus === 'CANCELLED') {
+                await jobService.cancel({ jobId: selectedJob._id, reason: statusReason.trim() });
+            } else {
+                await jobService.edit({
+                    jobId: selectedJob._id,
+                    status: nextStatus,
+                    ...(requirement === 'printer' ? { printerId: statusPrinterId } : {}),
+                    ...(requirement === 'stack' ? { stackId: statusStackId } : {}),
+                    ...(requirement === 'reason' ? { failureReason: statusReason.trim() } : {}),
+                });
+            }
+            await loadInitialData();
+            setSelectedJob(null);
+        } catch (e) {
+            console.error('Failed to change status', e);
+        } finally {
+            setStatusSaving(false);
+        }
+    };
 
     useEffect(() => { applyFilters(); }, [jobs, statusFilter, userFilter, locationFilter, searchQuery, dateFrom, dateTo]);
 
@@ -281,6 +346,56 @@ const OrdersPage: React.FC = () => {
                                 {selectedJob.printedAt && <DetailRow label="Printed At" value={new Date(selectedJob.printedAt).toLocaleString('en-IN')} />}
                                 {selectedJob.completedAt && <DetailRow label="Completed At" value={new Date(selectedJob.completedAt).toLocaleString('en-IN')} />}
                                 {selectedJob.collectedAt && <DetailRow label="Collected At" value={new Date(selectedJob.collectedAt).toLocaleString('en-IN')} />}
+                            </div>
+
+                            <div className="mt-6 pt-6 border-t border-border">
+                                <h4 className="font-semibold flex items-center gap-2 text-text mb-3">
+                                    <ArrowRightCircle className="w-4 h-4 text-primary" /> Change Status
+                                </h4>
+                                <div className="space-y-3">
+                                    <select
+                                        value={nextStatus}
+                                        onChange={e => setNextStatus(e.target.value)}
+                                        className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary transition-colors duration-200"
+                                    >
+                                        <option value="">Select next status…</option>
+                                        {NEXT_STATUS_OPTIONS.filter(s => s !== selectedJob.status).map(s => (
+                                            <option key={s} value={s}>{s}</option>
+                                        ))}
+                                    </select>
+
+                                    {requirement === 'printer' && (
+                                        <select value={statusPrinterId} onChange={e => setStatusPrinterId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary">
+                                            <option value="">Choose a printer…</option>
+                                            {jobPrinters.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
+                                        </select>
+                                    )}
+                                    {requirement === 'stack' && (
+                                        <select value={statusStackId} onChange={e => setStatusStackId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary">
+                                            <option value="">Choose a stack…</option>
+                                            {jobStacks.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                                        </select>
+                                    )}
+                                    {requirement === 'reason' && (
+                                        <input
+                                            value={statusReason}
+                                            onChange={e => setStatusReason(e.target.value)}
+                                            placeholder={nextStatus === 'CANCELLED' ? 'Reason for cancellation…' : 'Reason for failure…'}
+                                            className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary"
+                                        />
+                                    )}
+
+                                    {nextStatus && (
+                                        <button
+                                            onClick={handleChangeStatus}
+                                            disabled={!canConfirmStatus || statusSaving}
+                                            className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-lg py-2.5 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm"
+                                        >
+                                            {statusSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
+                                            Confirm → {nextStatus}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
