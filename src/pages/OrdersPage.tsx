@@ -294,13 +294,13 @@ const OrdersPage: React.FC = () => {
                             <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by reference ID or file name..." className={`${inputClass} pl-10 pr-4`} />
                         </div>
                         <div className="relative">
-                            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={selectClass} style={{ colorScheme: 'light' }}>
+                            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={selectClass}>
                                 {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s === 'ALL' ? 'All Statuses' : s}</option>)}
                             </select>
                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
                         </div>
                         <div className="relative">
-                            <select value={userFilter} onChange={e => setUserFilter(e.target.value)} className={selectClass} style={{ colorScheme: 'light' }}>
+                            <select value={userFilter} onChange={e => setUserFilter(e.target.value)} className={selectClass}>
                                 <option value="ALL">All Users</option>
                                 {users.map(u => <option key={u._id} value={u._id}>{u.name || u.email}</option>)}
                             </select>
@@ -446,7 +446,7 @@ const OrdersPage: React.FC = () => {
                                         {jobPrinters.length === 0 ? (
                                             <p className="text-xs text-accent bg-accent/10 rounded-lg px-3 py-2">No printers configured. Add one on the Hardware &amp; Locations page first.</p>
                                         ) : (
-                                            <select value={statusPrinterId} onChange={e => setStatusPrinterId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary" style={{ colorScheme: 'light' }}>
+                                            <select value={statusPrinterId} onChange={e => setStatusPrinterId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary">
                                                 <option value="">Choose a printer…</option>
                                                 {jobPrinters.map(p => <option key={p._id} value={p._id}>{p._label || p.name}</option>)}
                                             </select>
@@ -459,7 +459,7 @@ const OrdersPage: React.FC = () => {
                                         {jobStacks.length === 0 ? (
                                             <p className="text-xs text-accent bg-accent/10 rounded-lg px-3 py-2">No stacks configured. Add one on the Hardware &amp; Locations page first.</p>
                                         ) : (
-                                            <select value={statusStackId} onChange={e => setStatusStackId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary" style={{ colorScheme: 'light' }}>
+                                            <select value={statusStackId} onChange={e => setStatusStackId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary">
                                                 <option value="">Choose a stack…</option>
                                                 {jobStacks.map(s => <option key={s._id} value={s._id}>{s._label || s.name}</option>)}
                                             </select>
