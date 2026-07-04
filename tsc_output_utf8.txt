@@ -1,0 +1,2 @@
+﻿src/pages/UploadPage.tsx(132,19): error TS6133: 'totalCost' is declared but its value is never read.
+src/pages/UploadPage.tsx(173,34): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
