@@ -113,15 +113,38 @@ const OrdersPage: React.FC = () => {
             } catch (err) { console.error('Failed to advance status', err); }
             return;
         }
-        // Open the data popup, preloading this location's printers/stacks.
+        // Open the data popup and preload printer/stack choices. Prefer the
+        // job's own location, but fall back to every location's hardware so
+        // orders placed without a location can still be assigned one.
         setStatusJob(job);
         setStatusTarget(next);
         setStatusReason(''); setStatusPrinterId(''); setStatusStackId('');
         setJobPrinters([]); setJobStacks([]);
-        const locId = job?.locationId?._id || job?.locationId;
-        if (locId) {
-            hardwareService.getPrinters(locId).then(d => setJobPrinters(d?.DATA || d || [])).catch(() => {});
-            hardwareService.getStacks(locId).then(d => setJobStacks(d?.DATA || d || [])).catch(() => {});
+        loadHardwareChoices(job?.locationId?._id || job?.locationId);
+    };
+
+    const loadHardwareChoices = async (jobLocId?: string) => {
+        // Which locations to pull hardware from: the job's own, or all of them.
+        const locIds: string[] = jobLocId
+            ? [jobLocId]
+            : locations.map(l => l._id).filter(Boolean);
+
+        const label = (item: any, locId: string) => {
+            const loc = locations.find(l => l._id === locId);
+            return loc && !jobLocId ? { ...item, _label: `${item.name} · ${loc.name}` } : { ...item, _label: item.name };
+        };
+
+        try {
+            const printerResults = await Promise.all(
+                locIds.map(id => hardwareService.getPrinters(id).then(d => (d?.DATA || d || []).map((p: any) => label(p, id))).catch(() => []))
+            );
+            const stackResults = await Promise.all(
+                locIds.map(id => hardwareService.getStacks(id).then(d => (d?.DATA || d || []).map((s: any) => label(s, id))).catch(() => []))
+            );
+            setJobPrinters(printerResults.flat());
+            setJobStacks(stackResults.flat());
+        } catch (err) {
+            console.error('Failed to load hardware choices', err);
         }
     };
 
@@ -129,11 +152,22 @@ const OrdersPage: React.FC = () => {
         if (!statusJob || !statusTarget || !canConfirmStatus) return;
         setStatusSaving(true);
         try {
-            const extra =
+            // If the job had no location, inherit it from the chosen hardware
+            // so the record stays consistent.
+            const jobHasLoc = !!(statusJob?.locationId?._id || statusJob?.locationId);
+            const chosenPrinter = jobPrinters.find(p => p._id === statusPrinterId);
+            const chosenStack = jobStacks.find(s => s._id === statusStackId);
+            const inheritedLoc = !jobHasLoc
+                ? (statusRequirement === 'printer' ? chosenPrinter?.locationId : statusRequirement === 'stack' ? chosenStack?.locationId : undefined)
+                : undefined;
+
+            const extra: Record<string, any> =
                 statusRequirement === 'printer' ? { printerId: statusPrinterId } :
                 statusRequirement === 'stack' ? { stackId: statusStackId } :
                 statusRequirement === 'reason' ? { failureReason: statusReason.trim() } :
                 {};
+            if (inheritedLoc) extra.locationId = inheritedLoc?._id || inheritedLoc;
+
             await applyStatus(statusJob, statusTarget, extra);
             setStatusJob(null); setStatusTarget('');
         } catch (e) {
@@ -409,19 +443,27 @@ const OrdersPage: React.FC = () => {
                                 {statusRequirement === 'printer' && (
                                     <div>
                                         <label className="block text-xs text-text-muted mb-1.5">Assign printer</label>
-                                        <select value={statusPrinterId} onChange={e => setStatusPrinterId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary" style={{ colorScheme: 'light' }}>
-                                            <option value="">Choose a printer…</option>
-                                            {jobPrinters.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
-                                        </select>
+                                        {jobPrinters.length === 0 ? (
+                                            <p className="text-xs text-accent bg-accent/10 rounded-lg px-3 py-2">No printers configured. Add one on the Hardware &amp; Locations page first.</p>
+                                        ) : (
+                                            <select value={statusPrinterId} onChange={e => setStatusPrinterId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary" style={{ colorScheme: 'light' }}>
+                                                <option value="">Choose a printer…</option>
+                                                {jobPrinters.map(p => <option key={p._id} value={p._id}>{p._label || p.name}</option>)}
+                                            </select>
+                                        )}
                                     </div>
                                 )}
                                 {statusRequirement === 'stack' && (
                                     <div>
                                         <label className="block text-xs text-text-muted mb-1.5">Assign stack / tray</label>
-                                        <select value={statusStackId} onChange={e => setStatusStackId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary" style={{ colorScheme: 'light' }}>
-                                            <option value="">Choose a stack…</option>
-                                            {jobStacks.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
-                                        </select>
+                                        {jobStacks.length === 0 ? (
+                                            <p className="text-xs text-accent bg-accent/10 rounded-lg px-3 py-2">No stacks configured. Add one on the Hardware &amp; Locations page first.</p>
+                                        ) : (
+                                            <select value={statusStackId} onChange={e => setStatusStackId(e.target.value)} className="w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary" style={{ colorScheme: 'light' }}>
+                                                <option value="">Choose a stack…</option>
+                                                {jobStacks.map(s => <option key={s._id} value={s._id}>{s._label || s.name}</option>)}
+                                            </select>
+                                        )}
                                     </div>
                                 )}
                                 {statusRequirement === 'reason' && (
