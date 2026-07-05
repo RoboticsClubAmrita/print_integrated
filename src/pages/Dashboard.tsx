@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, AlertCircle, FileText, Loader2, RefreshCw, IndianRupee } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { jobService, systemService } from '../services/api';
+import { jobService, systemService, userService } from '../services/api';
 import Reveal from '../components/Reveal';
 
 const STATUS_STYLES: Record<string, string> = {
@@ -28,12 +28,46 @@ const Dashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [isResetting, setIsResetting] = useState(false);
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
-    const storedUser = localStorage.getItem('user');
-    const currentUser = storedUser ? JSON.parse(storedUser) : null;
-    const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
+    useEffect(() => {
+        fetchJobs();
+        fetchCurrentUser();
+    }, []);
 
-    useEffect(() => { fetchJobs(); }, []);
+    const fetchCurrentUser = async () => {
+        try {
+            const storedUser = localStorage.getItem('user');
+            const localUser = storedUser ? JSON.parse(storedUser) : null;
+            let userId = localUser?._id || localUser?.id || localUser?.userId;
+
+            // Fallback: decode JWT to get userId if user object not in localStorage
+            if (!userId) {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    try {
+                        const payload = JSON.parse(atob(token.split('.')[1]));
+                        userId = payload?.userId || payload?.id || payload?._id;
+                    } catch { /* ignore decode errors */ }
+                }
+            }
+
+            if (!userId) return;
+            const res = await userService.getById(userId);
+            const user = res?.DATA || res?.data || res;
+            const role = user?.role;
+            if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
+                setIsSuperAdmin(true);
+            }
+        } catch {
+            // fallback: check localStorage role
+            const storedUser = localStorage.getItem('user');
+            const localUser = storedUser ? JSON.parse(storedUser) : null;
+            if (localUser?.role === 'SUPER_ADMIN' || localUser?.role === 'ADMIN') {
+                setIsSuperAdmin(true);
+            }
+        }
+    };
 
     const fetchJobs = async () => {
         try {
