@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MapPin, ShoppingCart, Users, IndianRupee, LogOut, Loader2 } from 'lucide-react';
+import { LayoutDashboard, MapPin, ShoppingCart, Users, IndianRupee, LogOut, Loader2, ShieldOff, Settings } from 'lucide-react';
 import { authService } from '../../services/api';
 import ThemeToggle from '../ThemeToggle';
 
@@ -10,6 +10,8 @@ const NAV_ITEMS = [
     { path: '/users', label: 'Users', icon: Users },
     { path: '/locations', label: 'Hardware', icon: MapPin },
     { path: '/pricing', label: 'Pricing', icon: IndianRupee },
+    { path: '/penalties', label: 'Penalties', icon: ShieldOff },
+    { path: '/config', label: 'Business Rules', icon: Settings },
 ];
 
 interface AdminSidebarProps {

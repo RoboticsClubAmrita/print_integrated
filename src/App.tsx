@@ -8,6 +8,8 @@ import LocationsPage from './pages/LocationsPage';
 import OrdersPage from './pages/OrdersPage';
 import UsersPage from './pages/UsersPage';
 import PricingPage from './pages/PricingPage';
+import PenaltiesPage from './pages/PenaltiesPage';
+import ConfigPage from './pages/ConfigPage';
 import AdminLayout from './components/layout/AdminLayout';
 
 const Background3D = React.lazy(() => import('./components/Background3D'));
@@ -34,6 +36,8 @@ function App() {
                 <Route path="/users" element={<WithAdmin><UsersPage /></WithAdmin>} />
                 <Route path="/locations" element={<WithAdmin><LocationsPage /></WithAdmin>} />
                 <Route path="/pricing" element={<WithAdmin><PricingPage /></WithAdmin>} />
+                <Route path="/penalties" element={<WithAdmin><PenaltiesPage /></WithAdmin>} />
+                <Route path="/config" element={<WithAdmin><ConfigPage /></WithAdmin>} />
 
                 <Route path="/" element={<Navigate to="/login" replace />} />
             </Routes>

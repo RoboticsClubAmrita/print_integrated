@@ -12,6 +12,9 @@ const UploadPage: React.FC = () => {
     const [error, setError] = useState('');
     const [pricePerPage, setPricePerPage] = useState<number>(0);
     const [isPriceLoading, setIsPriceLoading] = useState(false);
+    // Real page count detected server-side at upload time (PDF/DOCX parsing) —
+    // replaces the previous hardcoded "10 pages" estimate and job field.
+    const [totalPages, setTotalPages] = useState<number>(1);
 
     const onDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -54,7 +57,7 @@ const UploadPage: React.FC = () => {
         fetchPrice();
     }, [config]);
 
-    const estimatedCost = 10 * pricePerPage;
+    const estimatedCost = totalPages * pricePerPage;
 
     const handleFileUpload = async () => {
         if (!file) return;
@@ -95,6 +98,11 @@ const UploadPage: React.FC = () => {
             const uploadResult = await fileService.upload(formData);
             console.log('File uploaded:', uploadResult);
 
+            const detectedPages = Number(
+                uploadResult?.DATA?.metadata?.totalPages ?? uploadResult?.metadata?.totalPages ?? 1
+            ) || 1;
+            setTotalPages(detectedPages);
+
             let finalPrice: number = pricePerPage;
             try {
                 const priceResult = await pricingService.lookup({ size: config.size, type: config.type, side: config.side });
@@ -115,7 +123,7 @@ const UploadPage: React.FC = () => {
                 pageType: config.size,
                 colorMode: config.type === 'colour' ? 'COLOR' : 'BW',
                 printSide: config.side === 'double' ? 'DOUBLE' : 'SINGLE',
-                copies: 1, totalPagesToPrint: 10,
+                copies: 1, totalPagesToPrint: detectedPages,
             });
             console.log('Job created (FULL RESPONSE):', JSON.stringify(jobResult, null, 2));
 

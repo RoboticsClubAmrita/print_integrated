@@ -48,6 +48,17 @@ export const webhookAPI = `${API}/payments/webhook`;
 /* ================= FILES ================= */
 export const uploadFileAPI = `${API}/files/upload`;
 
+/* ================= CONFIG ================= */
+export const getConfigAPI = `${API}/config`;
+export const updateConfigAPI = `${API}/config`;
+export const getPublicConfigAPI = `${API}/config/public`;
+
+/* ================= PENALTIES ================= */
+export const getAllPenaltiesAPI = `${API}/penalties/all`;
+export const getUserPenaltiesAPI = (userId) => `${API}/penalties/user/${userId}`;
+export const waivePenaltyAPI = `${API}/penalties/waive`;
+export const createPenaltyOrderAPI = `${API}/payments/penalties/create-order`;
+
 
 const api = axios.create({
     headers: {
@@ -213,6 +224,10 @@ export const paymentService = {
         const response = await api.post(createOrderAPI, orderData);
         return response.data;
     },
+    createPenaltyOrder: async (userId) => {
+        const response = await api.post(createPenaltyOrderAPI, { userId });
+        return response.data;
+    },
     verify: async (paymentData) => {
         const response = await api.post(verifyPaymentAPI, paymentData);
         return response.data;
@@ -255,6 +270,20 @@ export const systemService = {
         const response = await api.delete(`${API}/system/reset`);
         return response.data;
     }
+};
+
+// ── Config Service (business rules: penalty + scheduling) ──
+export const configService = {
+    get: async () => (await api.get(getConfigAPI)).data,
+    getPublic: async () => (await api.get(getPublicConfigAPI)).data,
+    update: async (updates) => (await api.put(updateConfigAPI, updates)).data,
+};
+
+// ── Penalty Service (auditable ledger) ──
+export const penaltyService = {
+    getAll: async (params = {}) => (await api.get(getAllPenaltiesAPI, { params })).data,
+    getForUser: async (userId) => (await api.get(getUserPenaltiesAPI(userId))).data,
+    waive: async (penaltyId, reason) => (await api.post(waivePenaltyAPI, { penaltyId, reason })).data,
 };
 
 export default api;

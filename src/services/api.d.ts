@@ -75,10 +75,21 @@ export declare const pricingService: {
 };
 export declare const paymentService: {
     createOrder: (orderData: any) => Promise<any>;
+    createPenaltyOrder: (userId: string) => Promise<any>;
     verify: (paymentData: any) => Promise<any>;
     getById: (paymentId: string) => Promise<any>;
     getByJob: (jobId: string) => Promise<any>;
     getByUser: (userId: string, params?: any) => Promise<any>;
+};
+export declare const configService: {
+    get: () => Promise<any>;
+    getPublic: () => Promise<any>;
+    update: (updates: any) => Promise<any>;
+};
+export declare const penaltyService: {
+    getAll: (params?: any) => Promise<any>;
+    getForUser: (userId: string) => Promise<any>;
+    waive: (penaltyId: string, reason?: string) => Promise<any>;
 };
 export declare const printService: {
     upload: (formData: any) => Promise<any>;

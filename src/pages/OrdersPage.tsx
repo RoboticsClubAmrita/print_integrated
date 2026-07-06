@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { hardwareService, jobService, userService } from '../services/api';
 import { Search, Filter, RefreshCw, FileText, Clock, CheckCircle, AlertCircle, Loader2, IndianRupee, MapPin, User, ChevronDown, X, ArrowRightCircle } from 'lucide-react';
 
-const STATUS_OPTIONS = ['ALL', 'PENDING', 'QUEUED', 'PRINTING', 'COMPLETED', 'PRINTED_PENDING_STACK', 'COLLECTED', 'CANCELLED'];
+const STATUS_OPTIONS = ['ALL', 'PENDING', 'SCHEDULED', 'QUEUED', 'PRINTING', 'COMPLETED', 'PRINTED_PENDING_STACK', 'COLLECTED', 'CANCELLED'];
 
 // What extra data each target status needs before it can be applied.
 // Used by the one-click status-badge chain to decide whether to advance
@@ -23,6 +23,9 @@ const STATUS_REQUIRES: Record<string, 'printer' | 'stack' | 'reason' | null> = {
 // (null) do nothing when clicked.
 const ORDER_STATUS_CHAIN: Record<string, string | null> = {
     PENDING: 'QUEUED',
+    // SCHEDULED is not an admin-clickable step — a per-minute backend cron
+    // promotes it to QUEUED automatically once scheduledFor arrives.
+    SCHEDULED: null,
     QUEUED: 'PRINTING',
     PRINTING: 'COMPLETED',
     PRINTED_PENDING_STACK: 'COMPLETED',
@@ -34,6 +37,7 @@ const ORDER_STATUS_CHAIN: Record<string, string | null> = {
 
 const STATUS_STYLES: Record<string, string> = {
     PENDING:   'bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400',
+    SCHEDULED: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400',
     QUEUED:    'bg-neutral-100 text-neutral-700 dark:bg-neutral-500/10 dark:text-neutral-400',
     PRINTING:  'bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400',
     COMPLETED: 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400',
@@ -45,6 +49,7 @@ const STATUS_STYLES: Record<string, string> = {
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
     PENDING:   <Clock className="w-3 h-3" />,
+    SCHEDULED: <Clock className="w-3 h-3" />,
     QUEUED:    <Clock className="w-3 h-3" />,
     PRINTING:  <Loader2 className="w-3 h-3 animate-spin" />,
     COMPLETED: <CheckCircle className="w-3 h-3" />,
@@ -408,13 +413,27 @@ const OrdersPage: React.FC = () => {
                                 <DetailRow label="File" value={selectedJob.originalName || '—'} />
                                 <DetailRow label="User" value={getUserName(selectedJob.userId)} />
                                 <DetailRow label="Location" value={getLocationName(selectedJob.locationId)} />
-                                <DetailRow label="Pages" value={selectedJob.totalPagesToPrint || 0} />
+                                <DetailRow
+                                    label="Pages"
+                                    value={selectedJob.selectedPages?.length
+                                        ? `${formatPageRanges(selectedJob.selectedPages)} (${selectedJob.totalPagesToPrint} of file)`
+                                        : (selectedJob.totalPagesToPrint || 0)}
+                                />
                                 <DetailRow label="Copies" value={selectedJob.copies || 1} />
                                 <DetailRow label="Color" value={selectedJob.colorMode === 'COLOR' ? 'Colour' : 'B&W'} />
                                 <DetailRow label="Side" value={selectedJob.printSide === 'DOUBLE' ? 'Double' : 'Single'} />
                                 <DetailRow label="Page Size" value={selectedJob.pageType || 'A4'} />
                                 <DetailRow label="Total Cost" value={`₹${selectedJob.totalCost?.toFixed(2) || '0.00'}`} highlight />
                                 <DetailRow label="Status" value={selectedJob.status} />
+                                {selectedJob.scheduleType === 'SCHEDULED' && selectedJob.scheduledFor && (
+                                    <DetailRow label="Scheduled For" value={new Date(selectedJob.scheduledFor).toLocaleString('en-IN')} />
+                                )}
+                                {selectedJob.stackName && !selectedJob.collectedStackName && (
+                                    <DetailRow label="Stack" value={selectedJob.stackName} />
+                                )}
+                                {selectedJob.collectedStackName && (
+                                    <DetailRow label="Collected From Stack" value={selectedJob.collectedStackName} />
+                                )}
                                 <DetailRow label="Created" value={new Date(selectedJob.createdAt).toLocaleString('en-IN')} />
                                 {selectedJob.printedAt && <DetailRow label="Printed At" value={new Date(selectedJob.printedAt).toLocaleString('en-IN')} />}
                                 {selectedJob.completedAt && <DetailRow label="Completed At" value={new Date(selectedJob.completedAt).toLocaleString('en-IN')} />}
@@ -495,6 +514,23 @@ const OrdersPage: React.FC = () => {
         </div>
     );
 };
+
+// Compacts a sorted page-number array into printer-style ranges, e.g.
+// [1,2,3,5,8,9] -> "1-3, 5, 8-9" — mirrors the mobile app's own formatter.
+function formatPageRanges(pages: number[]): string {
+    if (!pages || pages.length === 0) return '';
+    const parts: string[] = [];
+    let start = pages[0];
+    let prev = pages[0];
+    for (let i = 1; i < pages.length; i++) {
+        const p = pages[i];
+        if (p === prev + 1) { prev = p; continue; }
+        parts.push(start === prev ? `${start}` : `${start}-${prev}`);
+        start = p; prev = p;
+    }
+    parts.push(start === prev ? `${start}` : `${start}-${prev}`);
+    return parts.join(', ');
+}
 
 const DetailRow: React.FC<{ label: string; value: any; highlight?: boolean }> = ({ label, value, highlight }) => (
     <div className="flex justify-between items-center py-2 border-b border-border">
