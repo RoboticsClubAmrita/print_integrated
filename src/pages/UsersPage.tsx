@@ -306,7 +306,7 @@ const UsersPage: React.FC = () => {
                                 <option value="STUDENT">STUDENT</option>
                                 <option value="FACULTY">FACULTY</option>
                                 <option value="ADMIN">ADMIN</option>
-                                <option value="MEMBER">MEMBER</option>
+                                <option value="SUPER_ADMIN">SUPER_ADMIN</option>
                             </select>
                             <button onClick={handleAddUser} disabled={addingSaving} className="w-full bg-primary hover:bg-primary/90 text-white font-medium rounded-lg py-3 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm mt-2">
                                 {addingSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Create User
