@@ -141,7 +141,7 @@ const PricingPage: React.FC = () => {
                         <p className="text-sm text-text-muted mt-1">Configure print pricing rules and general business rules.</p>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 text-sm bg-primary hover:bg-primary/90 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 shadow-sm">
+                        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 text-sm press-btn text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 shadow-sm">
                             <Plus className="w-4 h-4" /> Add Price
                         </button>
                         <button onClick={handleSeed} disabled={seeding} className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-500 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 shadow-sm">
@@ -198,7 +198,7 @@ const PricingPage: React.FC = () => {
                                                         <IndianRupee className="w-4 h-4 text-primary mr-1" />
                                                         <input type="number" step="0.01" value={editPrice} onChange={e => setEditPrice(e.target.value)} className="bg-transparent text-text text-lg font-bold w-full focus:outline-none" autoFocus />
                                                     </div>
-                                                    <button onClick={handleSaveEdit} disabled={saving} className="p-2 bg-primary rounded-lg text-white"><Save className="w-4 h-4" /></button>
+                                                    <button onClick={handleSaveEdit} disabled={saving} className="press-btn p-2"><Save className="w-4 h-4" /></button>
                                                     <button onClick={() => setEditingId(null)} className="p-2 bg-bg-secondary border border-border rounded-lg"><X className="w-4 h-4 text-text-muted" /></button>
                                                 </div>
                                             ) : (
@@ -280,7 +280,7 @@ const PricingPage: React.FC = () => {
                             <button
                                 onClick={handleSaveConfig}
                                 disabled={configSaving}
-                                className="w-full bg-primary hover:bg-primary/90 disabled:opacity-50 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm"
+                                className="w-full press-btn disabled:opacity-50 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm"
                             >
                                 {configSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : configSaved ? <CheckCircle2 className="w-5 h-5" /> : <Save className="w-5 h-5" />}
                                 {configSaved ? 'Saved' : 'Save Changes'}
@@ -321,7 +321,7 @@ const PricingPage: React.FC = () => {
                                 <label className="text-xs text-text-muted mb-1 block">Price per Page</label>
                                 <input type="number" step="0.01" value={newPrice} onChange={e => setNewPrice(e.target.value)} placeholder="2.50" className={inputClass} />
                             </div>
-                            <button onClick={handleCreate} disabled={creating} className="w-full bg-primary hover:bg-primary/90 text-white font-medium rounded-lg py-3 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm mt-2">
+                            <button onClick={handleCreate} disabled={creating} className="w-full press-btn text-white font-medium rounded-lg py-3 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm mt-2">
                                 {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Create
                             </button>
                         </div>

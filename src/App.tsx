@@ -9,6 +9,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { ToastHost } from '@/components/ui/ToastHost';
 import { SuccessOverlay } from '@/components/app/SuccessOverlay';
 import { MockRazorpayModal } from '@/components/app/MockRazorpayModal';
+import { ModeTransitionOverlay } from '@/components/app/ModeTransitionOverlay';
 
 const LandingPage = lazy(() => import('@/pages/landing/LandingPage'));
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
@@ -33,22 +34,22 @@ import LocationsPage from './pages/LocationsPage';
 import PricingPage from './pages/PricingPage';
 import PenaltiesPage from './pages/PenaltiesPage';
 
-const Background3D = React.lazy(() => import('./components/Background3D'));
-
 const WithAdmin = ({ children }: { children: React.ReactNode }) => (
     <AdminLayout>{children}</AdminLayout>
 );
 
-/** Admin-only globals (3D background, grain overlay) — scoped here so they never bleed into PrintEase's pages. */
+/**
+ * Admin Mode root — the Press Room. The wrapper carries BOTH scoping classes:
+ * `admin-scope` (every admin style in index.css lives under it) and `dark`
+ * (activates the pages' dark: variants). Neither ever touches <html>, so the
+ * storefront and user app can never inherit admin styling.
+ */
 function AdminRoot() {
     return (
-        <>
-            <Suspense fallback={null}>
-                <Background3D />
-            </Suspense>
-            <div className="grain-overlay" />
+        <div className="admin-scope dark min-h-screen">
+            <div aria-hidden className="press-backdrop" />
             <Outlet />
-        </>
+        </div>
     );
 }
 
@@ -142,6 +143,7 @@ export default function App() {
                 <ToastHost />
                 <SuccessOverlay />
                 <MockRazorpayModal />
+                <ModeTransitionOverlay />
             </BrowserRouter>
         </MotionConfig>
     );

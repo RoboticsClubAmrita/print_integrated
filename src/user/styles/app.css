@@ -21,6 +21,9 @@
   --color-danger: #ff453a; /* web-only addition */
 
   --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* Object voice: ticket meta, job numbers, pickup codes, printed prices.
+     Never UI labels — it's the type of the printed artifact, not the app. */
+  --font-receipt: "Courier Prime", "Courier New", ui-monospace, monospace;
 
   --radius-btn: 16px;
   --radius-field: 22px;

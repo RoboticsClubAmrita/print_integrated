@@ -1,8 +1,19 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MapPin, ShoppingCart, Users, IndianRupee, LogOut, Loader2, ShieldOff } from 'lucide-react';
+import {
+    LayoutDashboard,
+    MapPin,
+    ShoppingCart,
+    Users,
+    IndianRupee,
+    LogOut,
+    Loader2,
+    ShieldOff,
+    PanelLeftClose,
+    PanelLeftOpen,
+} from 'lucide-react';
+import { clsx } from 'clsx';
 import { authService } from '../../services/api';
-import ThemeToggle from '../ThemeToggle';
 
 const NAV_ITEMS = [
     { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -13,19 +24,27 @@ const NAV_ITEMS = [
     { path: '/admin/penalties', label: 'Penalties', icon: ShieldOff },
 ];
 
-
 interface AdminSidebarProps {
     collapsed: boolean;
     onToggle: () => void;
 }
 
+/**
+ * Press Room nav rail: a quiet ink dock under the header. Active station is
+ * marked with a lifted row + the amber "operating" dot — the same status-dot
+ * language the brand uses everywhere else.
+ */
 const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggle }) => {
     const navigate = useNavigate();
     const [isLoggingOut, setIsLoggingOut] = React.useState(false);
 
     const handleLogout = async () => {
         setIsLoggingOut(true);
-        try { await authService.logout(); } catch (e) { console.error(e); } finally {
+        try {
+            await authService.logout();
+        } catch (e) {
+            console.error(e);
+        } finally {
             setIsLoggingOut(false);
             navigate('/login');
         }
@@ -33,66 +52,77 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggle }) => {
 
     return (
         <aside
-            className={`fixed left-0 top-0 h-screen flex flex-col py-6 z-50 bg-transparent transition-all duration-300 ${
-                collapsed ? 'w-[84px]' : 'w-[260px]'
-            }`}
+            className={clsx(
+                'fixed left-0 top-16 bottom-0 z-30 flex flex-col border-r border-white/8 bg-black/25 py-4 transition-[width] duration-300 ease-out',
+                collapsed ? 'w-[76px] px-3' : 'w-[248px] px-4',
+            )}
         >
-            {/* Brand / toggle — clicking the "P" tile collapses or expands the nav */}
-            <div className={`mb-8 ${collapsed ? 'px-0 flex justify-center' : 'px-5'}`}>
-                <button
-                    onClick={onToggle}
-                    title={collapsed ? 'Expand menu' : 'Collapse menu'}
-                    className="flex items-center gap-3 focus:outline-none"
-                >
-                    <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br from-[#0ea5e9] to-[#8b5cf6] shadow-lg shadow-[#0ea5e9]/20">
-                        <span className="text-white font-bold text-lg font-heading">P</span>
-                    </div>
-                    {!collapsed && (
-                        <div className="text-left">
-                            <p className="text-sm font-semibold leading-tight text-text font-heading">PrintPost</p>
-                            <p className="text-[11px] text-text-muted">Admin Console</p>
-                        </div>
-                    )}
-                </button>
-            </div>
-
-            <nav className={`flex-1 w-full space-y-1.5 ${collapsed ? 'px-2' : 'px-3'}`}>
-                {NAV_ITEMS.map(item => (
+            <nav className="flex-1 space-y-1">
+                {NAV_ITEMS.map((item) => (
                     <NavLink
                         key={item.path}
                         to={item.path}
                         title={item.label}
                         className={({ isActive }) =>
-                            `flex items-center rounded-xl text-sm font-medium transition-all duration-300 backdrop-blur-md border shadow-lg shadow-black/20 ${
-                                collapsed ? 'justify-center w-11 h-11 mx-auto' : 'gap-3 px-3 py-2.5'
-                            } ${
+                            clsx(
+                                'group flex items-center rounded-[14px] text-[14px] font-semibold transition-colors duration-200',
+                                collapsed ? 'justify-center size-11 mx-auto' : 'gap-3 h-11 px-3.5',
                                 isActive
-                                    ? 'bg-[#0ea5e9]/25 text-white border-[#38bdf8]/40'
-                                    : 'bg-white/10 dark:bg-white/[0.07] text-text-secondary border-white/10 hover:bg-white/20 hover:text-text'
-                            }`
+                                    ? 'bg-white/10 text-white'
+                                    : 'text-white/50 hover:bg-white/6 hover:text-white/90',
+                            )
                         }
                     >
-                        <item.icon className="w-[18px] h-[18px] shrink-0" />
-                        {!collapsed && <span>{item.label}</span>}
+                        {({ isActive }) => (
+                            <>
+                                <item.icon size={18} strokeWidth={2} className="shrink-0" />
+                                {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+                                {!collapsed && (
+                                    <span
+                                        className={clsx(
+                                            'size-1.5 rounded-full transition-opacity duration-200',
+                                            isActive ? 'bg-accent-secondary opacity-100' : 'opacity-0',
+                                        )}
+                                    />
+                                )}
+                            </>
+                        )}
                     </NavLink>
                 ))}
             </nav>
 
-            <div className={`${collapsed ? 'px-2' : 'px-3'} space-y-2`}>
-                <div className={`flex items-center gap-2 ${collapsed ? 'flex-col' : 'justify-between px-1'}`}>
-                    <button
-                        onClick={handleLogout}
-                        disabled={isLoggingOut}
-                        title="Logout"
-                        className={`flex items-center rounded-xl text-sm font-medium backdrop-blur-md bg-red-500/15 border border-red-500/30 text-red-400 shadow-lg shadow-black/20 hover:bg-red-500/25 hover:text-red-300 transition-all duration-300 ${
-                            collapsed ? 'justify-center w-11 h-11' : 'gap-3 px-3 py-2.5'
-                        }`}
-                    >
-                        {isLoggingOut ? <Loader2 className="w-5 h-5 animate-spin shrink-0" /> : <LogOut className="w-5 h-5 shrink-0" />}
-                        {!collapsed && <span>Logout</span>}
-                    </button>
-                    <ThemeToggle />
-                </div>
+            <div className="space-y-1 border-t border-white/8 pt-3">
+                <button
+                    onClick={onToggle}
+                    title={collapsed ? 'Expand menu' : 'Collapse menu'}
+                    className={clsx(
+                        'flex items-center rounded-[14px] text-[13.5px] font-semibold text-white/45 hover:bg-white/6 hover:text-white/85 transition-colors duration-200',
+                        collapsed ? 'justify-center size-11 mx-auto' : 'gap-3 h-11 w-full px-3.5',
+                    )}
+                >
+                    {collapsed ? (
+                        <PanelLeftOpen size={18} strokeWidth={2} />
+                    ) : (
+                        <PanelLeftClose size={18} strokeWidth={2} />
+                    )}
+                    {!collapsed && <span>Collapse</span>}
+                </button>
+                <button
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    title="Log out"
+                    className={clsx(
+                        'flex items-center rounded-[14px] text-[13.5px] font-semibold text-[#ff8d85] hover:bg-[#ff453a]/10 transition-colors duration-200 disabled:opacity-50',
+                        collapsed ? 'justify-center size-11 mx-auto' : 'gap-3 h-11 w-full px-3.5',
+                    )}
+                >
+                    {isLoggingOut ? (
+                        <Loader2 size={18} className="animate-spin shrink-0" />
+                    ) : (
+                        <LogOut size={18} strokeWidth={2} className="shrink-0" />
+                    )}
+                    {!collapsed && <span>Log out</span>}
+                </button>
             </div>
         </aside>
     );

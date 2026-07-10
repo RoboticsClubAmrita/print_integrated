@@ -131,7 +131,7 @@ const UsersPage: React.FC = () => {
                         <p className="text-sm text-text-muted mt-1">View, edit, and manage registered users.</p>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 text-sm bg-primary hover:bg-primary/90 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 shadow-sm">
+                        <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 text-sm press-btn text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 shadow-sm">
                             <Plus className="w-4 h-4" /> Add User
                         </button>
                         <button onClick={loadUsers} disabled={loading} className="flex items-center gap-2 text-sm text-text-muted hover:text-text border border-border px-4 py-2 rounded-lg transition-colors duration-200">
@@ -280,7 +280,7 @@ const UsersPage: React.FC = () => {
                                 <label className="text-xs text-text-muted mb-1 block">Phone</label>
                                 <input value={editPhone} onChange={e => setEditPhone(e.target.value)} className={inputClass} />
                             </div>
-                            <button onClick={handleSaveEdit} disabled={saving} className="w-full bg-primary hover:bg-primary/90 text-white font-medium rounded-lg py-3 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm">
+                            <button onClick={handleSaveEdit} disabled={saving} className="w-full press-btn text-white font-medium rounded-lg py-3 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm">
                                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Changes
                             </button>
                         </div>
@@ -308,7 +308,7 @@ const UsersPage: React.FC = () => {
                                 <option value="ADMIN">ADMIN</option>
                                 <option value="SUPER_ADMIN">SUPER_ADMIN</option>
                             </select>
-                            <button onClick={handleAddUser} disabled={addingSaving} className="w-full bg-primary hover:bg-primary/90 text-white font-medium rounded-lg py-3 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm mt-2">
+                            <button onClick={handleAddUser} disabled={addingSaving} className="w-full press-btn text-white font-medium rounded-lg py-3 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm mt-2">
                                 {addingSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Create User
                             </button>
                         </div>

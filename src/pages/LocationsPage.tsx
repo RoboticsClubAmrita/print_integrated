@@ -121,7 +121,7 @@ const LocationsPage: React.FC = () => {
                     <div className="mb-6 space-y-3">
                         <input value={newLocName} onChange={e => setNewLocName(e.target.value)} placeholder="Location Name" className={inputClass} />
                         <input value={newLocAddress} onChange={e => setNewLocAddress(e.target.value)} placeholder="Address (optional)" className={inputClass} />
-                        <button onClick={handleCreateLocation} className="w-full bg-primary hover:bg-primary/90 text-white font-medium rounded-lg py-2.5 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm">
+                        <button onClick={handleCreateLocation} className="w-full press-btn text-white font-medium rounded-lg py-2.5 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm">
                             <Plus size={18} /> Add Location
                         </button>
                     </div>
@@ -149,7 +149,7 @@ const LocationsPage: React.FC = () => {
 
                              <div className="flex gap-3 mb-6">
                                  <input value={newPrinterName} onChange={e => setNewPrinterName(e.target.value)} placeholder="Printer Name (e.g. Printer-01)" className={`flex-1 ${inputClass}`} />
-                                 <button onClick={handleCreatePrinter} className="bg-primary hover:bg-primary/90 px-4 font-medium rounded-lg transition-colors duration-200 text-white flex gap-2 items-center shadow-sm"><Plus size={18} /> Add</button>
+                                 <button onClick={handleCreatePrinter} className="press-btn px-4 font-medium rounded-lg transition-colors duration-200 text-white flex gap-2 items-center shadow-sm"><Plus size={18} /> Add</button>
                              </div>
 
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -172,7 +172,7 @@ const LocationsPage: React.FC = () => {
 
                              <div className="flex gap-3 mb-6">
                                  <input value={newStackName} onChange={e => setNewStackName(e.target.value)} placeholder="Stack Name/Number (e.g. Slot-1)" className={`flex-1 ${inputClass}`} />
-                                 <button onClick={handleCreateStack} className="bg-primary hover:bg-primary/90 px-4 font-medium rounded-lg transition-colors duration-200 text-white flex gap-2 items-center shadow-sm"><Plus size={18} /> Add</button>
+                                 <button onClick={handleCreateStack} className="press-btn px-4 font-medium rounded-lg transition-colors duration-200 text-white flex gap-2 items-center shadow-sm"><Plus size={18} /> Add</button>
                              </div>
 
                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">

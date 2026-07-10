@@ -1,8 +1,9 @@
+import { useRef } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { clsx } from 'clsx'
 import { useAppStore } from '@/store/appStore'
-import { toast } from '@/store/uiStore'
+import { useModeTransition } from '@/store/modeTransition'
 import { initials } from '@/lib/format'
 import { DUR, EASE } from '@/lib/motion'
 
@@ -12,16 +13,19 @@ import { DUR, EASE } from '@/lib/motion'
  * Regular users: a plain avatar circle linking to the profile.
  *
  * ADMIN/SUPER_ADMIN users: the avatar sits inside an inline capsule slider.
- * Clicking the capsule track navigates between `/app` and `/admin` — the
- * avatar glides to the other end while the label (USER / ADMIN) swaps sides,
- * with the on/off state read straight from the current URL rather than a
- * persisted preference. Clicking the avatar circle itself opens the profile.
- * Admin mode dresses the capsule with the danger accent.
+ * Clicking the capsule track starts the mode transition — the screen floods
+ * with ink (to the Press Room) or paper (back to the Storefront) from this
+ * exact spot, and the route swaps beneath the flood. The capsule reads its
+ * on/off state straight from the URL. Admin mode dresses the capsule with
+ * the amber "operating" accent; clicking the avatar knob opens the profile.
  */
 export function ProfileModeSwitch() {
   const navigate = useNavigate()
   const location = useLocation()
+  const capsuleRef = useRef<HTMLDivElement>(null)
   const user = useAppStore((s) => s.user)
+  const startTransition = useModeTransition((s) => s.start)
+  const transitionActive = useModeTransition((s) => s.active)
 
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'
   const adminMode = location.pathname.startsWith('/admin')
@@ -41,13 +45,18 @@ export function ProfileModeSwitch() {
   }
 
   const toggle = () => {
-    const next = !adminMode
-    navigate(next ? '/admin' : '/app')
-    toast(next ? 'Switched to Admin Mode' : 'Switched to User Mode')
+    if (transitionActive) return
+    const el = capsuleRef.current
+    const rect = el?.getBoundingClientRect()
+    const origin = rect
+      ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+      : { x: window.innerWidth - 90, y: 36 }
+    startTransition(adminMode ? 'user' : 'admin', origin)
   }
 
   return (
     <div
+      ref={capsuleRef}
       role="switch"
       aria-checked={adminMode}
       aria-label="Workspace mode — activate to toggle between User and Admin"
@@ -66,13 +75,11 @@ export function ProfileModeSwitch() {
       style={{
         background: 'linear-gradient(to bottom, #17171c, #0b0b0d)',
         boxShadow: adminMode
-          ? 'inset 0 2px 6px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 69 58 / 0.4), 0 0 16px rgb(255 69 58 / 0.18), 0 4px 12px rgb(0 0 0 / 0.18)'
+          ? 'inset 0 2px 6px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 159 10 / 0.45), 0 0 16px rgb(255 159 10 / 0.16), 0 4px 12px rgb(0 0 0 / 0.18)'
           : 'inset 0 2px 6px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(255 255 255 / 0.12), 0 4px 12px rgb(0 0 0 / 0.18)',
       }}
     >
-      {/* Mode wordmark — swaps sides as the avatar slides past it. The
-          italic extrabold type is the feature (no icon), with a hairline
-          "mode" caption for a designed, badge-like feel. */}
+      {/* Mode wordmark — swaps sides as the avatar slides past it. */}
       <motion.span
         layout
         transition={{ duration: DUR.normal, ease: EASE }}
@@ -81,7 +88,7 @@ export function ProfileModeSwitch() {
         <span
           className={clsx(
             'font-extrabold italic text-[15px] leading-none tracking-[-0.6px] transition-colors duration-200',
-            adminMode ? 'text-danger' : 'text-white/80 group-hover:text-white',
+            adminMode ? 'text-warning' : 'text-white/80 group-hover:text-white',
           )}
         >
           {adminMode ? 'Admin' : 'User'}
@@ -89,7 +96,7 @@ export function ProfileModeSwitch() {
         <span
           className={clsx(
             'mt-[3px] text-[7.5px] font-bold uppercase tracking-[2.5px] transition-colors duration-200',
-            adminMode ? 'text-danger/60' : 'text-white/35 group-hover:text-white/55',
+            adminMode ? 'text-warning/60' : 'text-white/35 group-hover:text-white/55',
           )}
         >
           mode
@@ -111,7 +118,7 @@ export function ProfileModeSwitch() {
         style={{
           background: 'linear-gradient(to bottom, #ffffff, #e9e9ee)',
           boxShadow: adminMode
-            ? '0 0 0 1.5px rgb(255 69 58 / 0.75), 0 2px 6px rgb(0 0 0 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.85), inset 0 -1px 2px rgb(0 0 0 / 0.08)'
+            ? '0 0 0 1.5px rgb(255 159 10 / 0.75), 0 2px 6px rgb(0 0 0 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.85), inset 0 -1px 2px rgb(0 0 0 / 0.08)'
             : '0 2px 6px rgb(0 0 0 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.85), inset 0 -1px 2px rgb(0 0 0 / 0.08)',
         }}
       >

@@ -13,8 +13,8 @@ export function LandingNav() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-line/70 bg-bg/85 backdrop-blur-md">
-      <div className="mx-auto max-w-[1180px] px-4 sm:px-6 h-[68px] flex items-center justify-between">
-        <Link to="/" className="press-soft">
+      <div className="mx-auto max-w-[1180px] px-4 sm:px-6 h-[68px] flex items-center justify-between gap-3">
+        <Link to="/" className="press-soft shrink-0">
           <BrandMark size={34} />
         </Link>
 
@@ -30,22 +30,29 @@ export function LandingNav() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
-          {!isLoggedIn && (
-            <Link
-              to="/login"
-              className="press-soft hidden sm:inline-flex items-center h-11 px-4 rounded-[14px] text-[14px] font-bold text-ink hover:bg-chip transition-colors"
-            >
-              Sign In
-            </Link>
-          )}
+        {isLoggedIn ? (
           <Link
-            to={isLoggedIn ? '/app' : '/register'}
+            to="/app"
             className="press inline-flex items-center h-11 px-5 rounded-[14px] bg-ink text-white text-[14px] font-bold hover:bg-ink-soft transition-colors"
           >
-            {isLoggedIn ? 'Open App' : 'Get Started'}
+            Open App
           </Link>
-        </div>
+        ) : (
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              to="/login"
+              className="press-soft inline-flex items-center h-11 px-4 rounded-[14px] text-[14px] font-bold text-ink hover:bg-chip transition-colors"
+            >
+              Log in
+            </Link>
+            <Link
+              to="/register"
+              className="press inline-flex items-center h-11 px-4 sm:px-5 rounded-[14px] bg-ink text-white text-[14px] font-bold hover:bg-ink-soft transition-colors"
+            >
+              Sign up
+            </Link>
+          </div>
+        )}
       </div>
     </header>
   )
