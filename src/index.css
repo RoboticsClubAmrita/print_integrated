@@ -6,7 +6,7 @@
   --color-primary: var(--color-primary-val);
   --color-accent: var(--color-accent-val);
   --color-accent-secondary: var(--color-accent-secondary-val);
-  --color-bg: var(--color-bg-val);
+  --color-admin-bg: var(--color-admin-bg-val);
   --color-bg-secondary: var(--color-bg-secondary-val);
   --color-surface: var(--color-surface-val);
   --color-surface-light: var(--color-surface-light-val);
@@ -22,7 +22,7 @@
   --color-primary-val: #525252;
   --color-accent-val: #0ea5e9;
   --color-accent-secondary-val: #8b5cf6;
-  --color-bg-val: #FAFAFA;
+  --color-admin-bg-val: #FAFAFA;
   --color-bg-secondary-val: #F0F0F0;
   --color-surface-val: #FFFFFF;
   --color-surface-light-val: #E5E5E5;
@@ -35,7 +35,7 @@
   line-height: 1.5;
   font-weight: 400;
   color: var(--color-text-val);
-  background-color: var(--color-bg-val);
+  background-color: var(--color-admin-bg-val);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -46,7 +46,7 @@
   --color-primary-val: #A3A3A3;
   --color-accent-val: #38bdf8;
   --color-accent-secondary-val: #a78bfa;
-  --color-bg-val: #050505;
+  --color-admin-bg-val: #050505;
   --color-bg-secondary-val: #0a0a0a;
   --color-surface-val: #0f0f0f;
   --color-surface-light-val: #1a1a1a;
@@ -65,7 +65,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: var(--color-bg-val);
+  background: var(--color-admin-bg-val);
   transition: background 0.4s ease, color 0.4s ease;
 }
 
@@ -160,7 +160,7 @@ h1, h2, h3, h4 {
 
 .btn-pill:hover {
   background: var(--color-text-val);
-  color: var(--color-bg-val);
+  color: var(--color-admin-bg-val);
   border-color: var(--color-text-val);
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
@@ -191,7 +191,7 @@ h1, h2, h3, h4 {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid var(--color-text-val);
   background: var(--color-text-val);
-  color: var(--color-bg-val);
+  color: var(--color-admin-bg-val);
   position: relative;
   overflow: hidden;
 }

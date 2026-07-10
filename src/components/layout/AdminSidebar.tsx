@@ -5,12 +5,12 @@ import { authService } from '../../services/api';
 import ThemeToggle from '../ThemeToggle';
 
 const NAV_ITEMS = [
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/orders', label: 'Orders', icon: ShoppingCart },
-    { path: '/users', label: 'Users', icon: Users },
-    { path: '/locations', label: 'Hardware', icon: MapPin },
-    { path: '/pricing', label: 'Pricing', icon: IndianRupee },
-    { path: '/penalties', label: 'Penalties', icon: ShieldOff },
+    { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/admin/orders', label: 'Orders', icon: ShoppingCart },
+    { path: '/admin/users', label: 'Users', icon: Users },
+    { path: '/admin/locations', label: 'Hardware', icon: MapPin },
+    { path: '/admin/pricing', label: 'Pricing', icon: IndianRupee },
+    { path: '/admin/penalties', label: 'Penalties', icon: ShieldOff },
 ];
 
 

@@ -29,7 +29,7 @@ const ResetPasswordForm: React.FC = () => {
         }
     };
 
-    const inputClass = "w-full bg-bg border border-border rounded-full py-3 pl-11 pr-5 text-text text-sm focus:outline-none focus:border-text/40 focus:ring-2 focus:ring-text/5 transition-all duration-300";
+    const inputClass = "w-full bg-admin-bg border border-border rounded-full py-3 pl-11 pr-5 text-text text-sm focus:outline-none focus:border-text/40 focus:ring-2 focus:ring-text/5 transition-all duration-300";
 
     if (success) {
         return (

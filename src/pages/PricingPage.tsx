@@ -194,7 +194,7 @@ const PricingPage: React.FC = () => {
 
                                             {editingId === p._id ? (
                                                 <div className="flex items-center gap-2">
-                                                    <div className="flex items-center bg-bg rounded-lg px-3 py-2 flex-1 border border-primary/50">
+                                                    <div className="flex items-center bg-admin-bg rounded-lg px-3 py-2 flex-1 border border-primary/50">
                                                         <IndianRupee className="w-4 h-4 text-primary mr-1" />
                                                         <input type="number" step="0.01" value={editPrice} onChange={e => setEditPrice(e.target.value)} className="bg-transparent text-text text-lg font-bold w-full focus:outline-none" autoFocus />
                                                     </div>

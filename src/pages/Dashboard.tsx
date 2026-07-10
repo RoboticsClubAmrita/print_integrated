@@ -133,7 +133,7 @@ const Dashboard: React.FC = () => {
                                     <p className="text-accent text-sm">{error}</p>
                                 </div>
                             ) : jobs.length === 0 ? (
-                                <div className="text-center py-14 bg-bg rounded-2xl border border-border">
+                                <div className="text-center py-14 bg-admin-bg rounded-2xl border border-border">
                                     <FileText className="w-14 h-14 text-text-muted/20 mx-auto mb-3" />
                                     <p className="text-text-muted font-medium font-heading">No print jobs yet</p>
                                     <p className="text-text-muted text-xs mt-2">
@@ -148,7 +148,7 @@ const Dashboard: React.FC = () => {
                                         const icon = STATUS_ICONS[status] || STATUS_ICONS['PENDING'];
                                         return (
                                             <Reveal key={job._id} delay={i * 0.05}>
-                                                <div className="flex items-center justify-between p-4 bg-bg rounded-xl border border-border hover:border-text/10 transition-all duration-300">
+                                                <div className="flex items-center justify-between p-4 bg-admin-bg rounded-xl border border-border hover:border-text/10 transition-all duration-300">
                                                     <div className="flex items-center gap-4 min-w-0">
                                                         <div className="w-10 h-10 rounded-xl bg-surface-light flex items-center justify-center shrink-0">
                                                             <FileText className="w-5 h-5 text-text-muted" />
@@ -188,15 +188,15 @@ const Dashboard: React.FC = () => {
                         <div className="card p-6">
                             <h3 className="text-xl font-semibold mb-5 text-text font-heading">Print Status</h3>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-bg p-4 rounded-xl border border-border">
+                                <div className="bg-admin-bg p-4 rounded-xl border border-border">
                                     <p className="text-text-muted text-xs uppercase tracking-wider mb-1 font-heading">Active</p>
                                     <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400 font-heading">{activeJobs.length}</p>
                                 </div>
-                                <div className="bg-bg p-4 rounded-xl border border-border">
+                                <div className="bg-admin-bg p-4 rounded-xl border border-border">
                                     <p className="text-text-muted text-xs uppercase tracking-wider mb-1 font-heading">Completed</p>
                                     <p className="text-3xl font-bold text-green-600 dark:text-green-400 font-heading">{completedJobs.length}</p>
                                 </div>
-                                <div className="bg-bg p-4 rounded-xl border border-border col-span-2">
+                                <div className="bg-admin-bg p-4 rounded-xl border border-border col-span-2">
                                     <p className="text-text-muted text-xs uppercase tracking-wider mb-1 font-heading">Total Spent</p>
                                     <p className="text-3xl font-bold text-text flex items-center gap-1 font-heading">
                                         <IndianRupee className="w-5 h-5" />

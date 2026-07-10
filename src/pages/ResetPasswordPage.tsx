@@ -12,7 +12,7 @@ const ResetPasswordPage: React.FC = () => {
                 <Reveal>
                     <div className="mb-10 flex flex-col items-center gap-4">
                         <div className="w-14 h-14 bg-text rounded-2xl flex items-center justify-center shadow-lg">
-                            <span className="text-bg font-bold text-2xl font-heading">P</span>
+                            <span className="text-admin-bg font-bold text-2xl font-heading">P</span>
                         </div>
                         <h1 className="text-3xl font-bold tracking-[-0.04em] text-text font-heading">PrintPost</h1>
                     </div>
