@@ -3,6 +3,7 @@ import axios from 'axios';
 // Use relative /api URL in production so Vercel can proxy over HTTPS
 const API = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_URL || 'http://13.60.246.95:5000/api');
 
+
 /* ================= AUTH ================= */
 export const loginAPI = `${API}/auth/login`;
 export const logoutAPI = `${API}/auth/logout`;
