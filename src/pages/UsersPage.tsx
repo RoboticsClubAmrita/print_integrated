@@ -1,13 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { userService } from '../services/api';
-import { Users, Search, Shield, Mail, Trash2, Edit3, X, Loader2, CheckCircle, AlertCircle, Plus, Save, UserX, UserCheck } from 'lucide-react';
+import { Edit3, Loader2, Plus, RefreshCw, Save, Search, Trash2, UserCheck, Users, UserX } from 'lucide-react';
+import {
+    Dialog,
+    EmptyState,
+    Field,
+    LedDot,
+    PageHeader,
+    RoleChip,
+    SkeletonRows,
+    inr,
+} from '../components/admin/ui';
 
-const ROLE_STYLES: Record<string, string> = {
-    ADMIN: 'bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400',
-    SUPER_ADMIN: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400',
-    STUDENT: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-500/10 dark:text-neutral-400',
-    FACULTY: 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400',
-    MEMBER: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400',
+const initials = (name?: string, email?: string) => {
+    const src = (name || email || '?').trim();
+    const parts = src.split(/\s+/);
+    return (parts.length > 1 ? parts[0][0] + parts[1][0] : src.slice(0, 2)).toUpperCase();
 };
 
 const UsersPage: React.FC = () => {
@@ -119,138 +127,120 @@ const UsersPage: React.FC = () => {
     };
 
     const roles = Array.from(new Set(users.map(u => u.role).filter(Boolean)));
-
-    const inputClass = "w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary transition-colors duration-200";
+    const outstanding = users.reduce((sum, u) => sum + (u.balance || 0), 0);
 
     return (
-        <div className="min-h-screen p-6 lg:p-8">
-            <header className="mb-8 max-w-[1200px] mx-auto">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-[28px] font-bold tracking-[-0.02em] text-text">Users</h1>
-                        <p className="text-sm text-text-muted mt-1">View, edit, and manage registered users.</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 text-sm press-btn text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 shadow-sm">
-                            <Plus className="w-4 h-4" /> Add User
+        <>
+            <PageHeader
+                title="Users"
+                meta={`${users.length} REGISTERED · ${inr(outstanding)} OUTSTANDING`}
+                actions={
+                    <>
+                        <button onClick={loadUsers} disabled={loading} className="btn-ghost !px-3" title="Refresh">
+                            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
                         </button>
-                        <button onClick={loadUsers} disabled={loading} className="flex items-center gap-2 text-sm text-text-muted hover:text-text border border-border px-4 py-2 rounded-lg transition-colors duration-200">
-                            <Loader2 className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+                        <button onClick={() => setShowAddModal(true)} className="press-btn">
+                            <Plus size={15} strokeWidth={2.4} /> Add user
                         </button>
+                    </>
+                }
+            />
+
+            <div className="space-y-5">
+                {/* Toolbar */}
+                <div className="panel flex flex-wrap items-center gap-2.5 px-3.5 py-3">
+                    <div className="relative min-w-[220px] flex-1">
+                        <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted" />
+                        <input
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="Search name, email or college ID…"
+                            className="ctl !pl-10"
+                        />
                     </div>
-                </div>
-            </header>
-
-            <main className="max-w-[1200px] mx-auto space-y-6">
-                {/* Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="card p-4">
-                        <p className="text-text-muted text-xs uppercase tracking-wider mb-1">Total Users</p>
-                        <p className="text-2xl font-bold text-primary">{users.length}</p>
-                    </div>
-                    {roles.slice(0, 3).map(role => (
-                        <div key={role} className="card p-4">
-                            <p className="text-text-muted text-xs uppercase tracking-wider mb-1">{role}</p>
-                            <p className="text-2xl font-bold text-text-secondary">{users.filter(u => u.role === role).length}</p>
-                        </div>
-                    ))}
+                    <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="ctl w-auto min-w-[130px] flex-none pr-8">
+                        <option value="ALL">All roles</option>
+                        {roles.map(r => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
+                    </select>
+                    <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="ctl w-auto min-w-[130px] flex-none pr-8">
+                        <option value="ALL">All status</option>
+                        <option value="ACTIVE">Active only</option>
+                        <option value="INACTIVE">Inactive only</option>
+                    </select>
                 </div>
 
-                <div className="card p-6">
-                    <p className="text-text-muted text-xs uppercase tracking-wider mb-1">Total Outstanding Balance (All Users)</p>
-                    <p className="text-3xl font-bold text-accent">{'₹'}{users.reduce((sum, u) => sum + (u.balance || 0), 0).toFixed(2)}</p>
-                </div>
-
-                {/* Filters */}
-                <div className="card p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                        <div className="relative col-span-2">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-                            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search by name, email, or college ID..." className={`${inputClass} pl-10`} />
-                        </div>
-                        <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className={`${inputClass} appearance-none cursor-pointer`}>
-                            <option value="ALL">All Roles</option>
-                            {roles.map(r => <option key={r} value={r}>{r}</option>)}
-                        </select>
-                        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`${inputClass} appearance-none cursor-pointer`}>
-                            <option value="ALL">All Status</option>
-                            <option value="ACTIVE">Active Only</option>
-                            <option value="INACTIVE">Inactive Only</option>
-                        </select>
-                    </div>
-                </div>
-
-                {/* Table */}
-                <div className="card overflow-hidden">
+                {/* Register */}
+                <div className="panel overflow-hidden">
                     {loading ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-text-muted">
-                            <Loader2 className="w-8 h-8 animate-spin mb-3" />
-                            <p>Loading users...</p>
-                        </div>
+                        <SkeletonRows rows={7} />
                     ) : filteredUsers.length === 0 ? (
-                        <div className="text-center py-16 text-text-muted">
-                            <Users className="w-14 h-14 mx-auto mb-3 opacity-20" />
-                            <p className="font-medium">No users found</p>
-                        </div>
+                        <EmptyState
+                            icon={Users}
+                            title="No users found"
+                            hint="Try a different search or loosen the filters."
+                        />
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
+                            <table className="tbl">
                                 <thead>
-                                    <tr className="border-b border-border text-text-muted text-xs uppercase tracking-wider">
-                                        <th className="text-left p-4">Name</th>
-                                        <th className="text-left p-4">Email</th>
-                                        <th className="text-left p-4">College ID</th>
-                                        <th className="text-left p-4">Phone</th>
-                                        <th className="text-right p-4">Balance</th>
-                                        <th className="text-center p-4">Role</th>
-                                        <th className="text-center p-4">Status</th>
-                                        <th className="text-right p-4">Actions</th>
+                                    <tr>
+                                        <th>User</th>
+                                        <th>College ID</th>
+                                        <th>Phone</th>
+                                        <th className="!text-right">Balance</th>
+                                        <th className="!text-center">Role</th>
+                                        <th>Status</th>
+                                        <th className="!text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filteredUsers.map((user) => (
-                                        <tr key={user._id} className="border-b border-border hover:bg-bg-secondary transition-colors duration-200">
-                                            <td className="p-4 font-medium text-text">{user.name || '—'}</td>
-                                            <td className="p-4 text-text-secondary flex items-center gap-1.5"><Mail className="w-3 h-3 text-text-muted" />{user.email}</td>
-                                            <td className="p-4 font-mono text-xs text-text-muted">{user.collegeId || '—'}</td>
-                                            <td className="p-4 text-text-muted">{user.phone || '—'}</td>
-                                            <td className="p-4 text-right">
-                                                {user.balance > 0 ? (
-                                                    <span className="bg-red-50 dark:bg-red-500/10 text-accent px-2 py-1 rounded-md text-xs font-bold">
-                                                        {'₹'}{user.balance.toFixed(2)}
+                                        <tr key={user._id} className="group">
+                                            <td>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="grid size-8 shrink-0 place-items-center rounded-full border border-white/8 bg-white/6 text-[10px] font-extrabold text-text-secondary">
+                                                        {initials(user.name, user.email)}
                                                     </span>
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-[13.5px] font-semibold text-text">{user.name || '—'}</p>
+                                                        <p className="truncate text-[12px] text-text-muted">{user.email}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="mono whitespace-nowrap text-[12px] text-text-secondary">{user.collegeId || '—'}</td>
+                                            <td className="whitespace-nowrap text-text-secondary">{user.phone || '—'}</td>
+                                            <td className="!text-right whitespace-nowrap">
+                                                {user.balance > 0 ? (
+                                                    <span className="chip chip--bad mono !text-[11px]">{inr(user.balance)}</span>
                                                 ) : (
-                                                    <span className="text-green-600 dark:text-green-400 font-medium text-sm">{'₹'}0.00</span>
+                                                    <span className="mono text-[12px] text-text-muted">₹0.00</span>
                                                 )}
                                             </td>
-                                            <td className="p-4 text-center">
-                                                <span className={`inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-md ${ROLE_STYLES[user.role] || 'bg-gray-50 text-gray-600 dark:bg-gray-500/10 dark:text-gray-400'}`}>
-                                                    <Shield className="w-3 h-3 mr-1" />{user.role}
+                                            <td className="!text-center whitespace-nowrap"><RoleChip role={user.role} /></td>
+                                            <td className="whitespace-nowrap">
+                                                <span className="flex items-center gap-2 text-[12.5px] font-semibold">
+                                                    <LedDot tone={user.isActive !== false ? 'ok' : 'bad'} />
+                                                    <span className={user.isActive !== false ? 'text-text-secondary' : 'text-[#ff8d85]'}>
+                                                        {user.isActive !== false ? 'Active' : 'Inactive'}
+                                                    </span>
                                                 </span>
                                             </td>
-                                            <td className="p-4 text-center">
-                                                {user.isActive ? (
-                                                    <span className="text-green-600 dark:text-green-400 flex items-center justify-center gap-1 text-xs"><CheckCircle className="w-3 h-3" />Active</span>
-                                                ) : (
-                                                    <span className="text-accent flex items-center justify-center gap-1 text-xs"><AlertCircle className="w-3 h-3" />Inactive</span>
-                                                )}
-                                            </td>
-                                            <td className="p-4 text-right">
-                                                <div className="flex items-center justify-end gap-1">
-                                                    <button onClick={() => openEdit(user)} title="Edit" className="p-2 hover:bg-primary/10 rounded-lg text-primary transition-colors duration-200">
-                                                        <Edit3 className="w-4 h-4" />
+                                            <td className="!text-right whitespace-nowrap">
+                                                <div className="flex items-center justify-end gap-0.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
+                                                    <button onClick={() => openEdit(user)} title="Edit" className="icon-btn">
+                                                        <Edit3 size={14} />
                                                     </button>
                                                     {user.isActive !== false ? (
-                                                        <button onClick={() => handleDeactivate(user._id)} title="Deactivate (Soft Delete)" className="p-2 hover:bg-amber-500/10 rounded-lg text-amber-500 transition-colors duration-200">
-                                                            <UserX className="w-4 h-4" />
+                                                        <button onClick={() => handleDeactivate(user._id)} title="Deactivate (soft delete)" className="icon-btn">
+                                                            <UserX size={14} />
                                                         </button>
                                                     ) : (
-                                                        <button onClick={() => handleReactivate(user._id)} title="Reactivate" className="p-2 hover:bg-green-500/10 rounded-lg text-green-500 transition-colors duration-200">
-                                                            <UserCheck className="w-4 h-4" />
+                                                        <button onClick={() => handleReactivate(user._id)} title="Reactivate" className="icon-btn">
+                                                            <UserCheck size={14} />
                                                         </button>
                                                     )}
-                                                    <button onClick={() => handleHardDelete(user._id, user.name || user.email)} title="Permanently Delete" className="p-2 hover:bg-red-500/10 rounded-lg text-red-500 transition-colors duration-200">
-                                                        <Trash2 className="w-4 h-4" />
+                                                    <button onClick={() => handleHardDelete(user._id, user.name || user.email)} title="Permanently delete" className="icon-btn icon-btn--danger">
+                                                        <Trash2 size={14} />
                                                     </button>
                                                 </div>
                                             </td>
@@ -261,61 +251,78 @@ const UsersPage: React.FC = () => {
                         </div>
                     )}
                 </div>
-            </main>
+            </div>
 
-            {/* Edit Modal */}
+            {/* Edit */}
             {editingUser && (
-                <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setEditingUser(null)}>
-                    <div className="card p-8 w-full max-w-md" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-bold text-text">Edit User</h3>
-                            <button onClick={() => setEditingUser(null)} className="p-2 hover:bg-bg-secondary rounded-full"><X className="w-5 h-5 text-text-muted" /></button>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-xs text-text-muted mb-1 block">Name</label>
-                                <input value={editName} onChange={e => setEditName(e.target.value)} className={inputClass} />
-                            </div>
-                            <div>
-                                <label className="text-xs text-text-muted mb-1 block">Phone</label>
-                                <input value={editPhone} onChange={e => setEditPhone(e.target.value)} className={inputClass} />
-                            </div>
-                            <button onClick={handleSaveEdit} disabled={saving} className="w-full press-btn text-white font-medium rounded-lg py-3 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm">
-                                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Changes
-                            </button>
-                        </div>
+                <Dialog
+                    title="Edit user"
+                    icon={Edit3}
+                    meta={editingUser.email}
+                    onClose={() => setEditingUser(null)}
+                    closeDisabled={saving}
+                >
+                    <div className="space-y-4">
+                        <Field label="Name">
+                            <input value={editName} onChange={e => setEditName(e.target.value)} className="ctl" />
+                        </Field>
+                        <Field label="Phone">
+                            <input value={editPhone} onChange={e => setEditPhone(e.target.value)} className="ctl" />
+                        </Field>
+                        <button onClick={handleSaveEdit} disabled={saving} className="press-btn w-full">
+                            {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Save changes
+                        </button>
                     </div>
-                </div>
+                </Dialog>
             )}
 
-            {/* Add User Modal */}
+            {/* Add */}
             {showAddModal && (
-                <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowAddModal(false)}>
-                    <div className="card p-8 w-full max-w-md" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-bold text-text">Add New User</h3>
-                            <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-bg-secondary rounded-full"><X className="w-5 h-5 text-text-muted" /></button>
+                <Dialog
+                    title="Add new user"
+                    icon={Plus}
+                    onClose={() => setShowAddModal(false)}
+                    closeDisabled={addingSaving}
+                >
+                    <div className="space-y-3.5">
+                        <div className="grid grid-cols-2 gap-3">
+                            <Field label="Full name *">
+                                <input value={newName} onChange={e => setNewName(e.target.value)} className="ctl" />
+                            </Field>
+                            <Field label="College ID">
+                                <input value={newCollegeId} onChange={e => setNewCollegeId(e.target.value)} className="ctl" />
+                            </Field>
                         </div>
-                        <div className="space-y-3">
-                            <input value={newCollegeId} onChange={e => setNewCollegeId(e.target.value)} placeholder="College ID" className={inputClass} />
-                            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Full Name *" className={inputClass} />
-                            <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Email *" type="email" className={inputClass} />
-                            <input value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Password *" type="password" className={inputClass} />
-                            <input value={newPhone} onChange={e => setNewPhone(e.target.value)} placeholder="Phone" className={inputClass} />
-                            <select value={newRole} onChange={e => setNewRole(e.target.value)} className={`${inputClass} appearance-none cursor-pointer`}>
-                                <option value="STUDENT">STUDENT</option>
-                                <option value="FACULTY">FACULTY</option>
-                                <option value="ADMIN">ADMIN</option>
-                                <option value="SUPER_ADMIN">SUPER_ADMIN</option>
-                            </select>
-                            <button onClick={handleAddUser} disabled={addingSaving} className="w-full press-btn text-white font-medium rounded-lg py-3 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm mt-2">
-                                {addingSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Create User
-                            </button>
+                        <Field label="Email *">
+                            <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} className="ctl" />
+                        </Field>
+                        <Field label="Password *">
+                            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="ctl" />
+                        </Field>
+                        <div className="grid grid-cols-2 gap-3">
+                            <Field label="Phone">
+                                <input value={newPhone} onChange={e => setNewPhone(e.target.value)} className="ctl" />
+                            </Field>
+                            <Field label="Role">
+                                <select value={newRole} onChange={e => setNewRole(e.target.value)} className="ctl pr-8">
+                                    <option value="STUDENT">STUDENT</option>
+                                    <option value="FACULTY">FACULTY</option>
+                                    <option value="ADMIN">ADMIN</option>
+                                    <option value="SUPER_ADMIN">SUPER ADMIN</option>
+                                </select>
+                            </Field>
                         </div>
+                        <button
+                            onClick={handleAddUser}
+                            disabled={addingSaving || !newName || !newEmail || !newPassword}
+                            className="press-btn mt-1 w-full"
+                        >
+                            {addingSaving ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} strokeWidth={2.4} />} Create user
+                        </button>
                     </div>
-                </div>
+                </Dialog>
             )}
-        </div>
+        </>
     );
 };
 

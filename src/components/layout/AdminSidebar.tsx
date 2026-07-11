@@ -2,26 +2,49 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
-    MapPin,
-    ShoppingCart,
+    ClipboardList,
     Users,
+    Printer,
+    Timer,
     IndianRupee,
     LogOut,
     Loader2,
-    ShieldOff,
     PanelLeftClose,
     PanelLeftOpen,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { authService } from '../../services/api';
 
-const NAV_ITEMS = [
-    { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/admin/orders', label: 'Orders', icon: ShoppingCart },
-    { path: '/admin/users', label: 'Users', icon: Users },
-    { path: '/admin/locations', label: 'Hardware', icon: MapPin },
-    { path: '/admin/pricing', label: 'Pricing', icon: IndianRupee },
-    { path: '/admin/penalties', label: 'Penalties', icon: ShieldOff },
+/**
+ * The nav dock — a floating glass island organized the way the shop
+ * actually works: run the floor (Operate), keep the ledgers straight
+ * (Manage), tune the machine (Configure). The active station carries
+ * the amber "operating" LED, the same status language the brand uses
+ * everywhere else. Paths are unchanged; only the room got rebuilt.
+ */
+const GROUPS: {
+    label: string;
+    items: { path: string; label: string; icon: React.ComponentType<{ size?: number | string; strokeWidth?: number | string; className?: string }> }[];
+}[] = [
+    {
+        label: 'OPERATE',
+        items: [
+            { path: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
+            { path: '/admin/orders', label: 'Orders', icon: ClipboardList },
+        ],
+    },
+    {
+        label: 'MANAGE',
+        items: [
+            { path: '/admin/users', label: 'Users', icon: Users },
+            { path: '/admin/locations', label: 'Hardware', icon: Printer },
+            { path: '/admin/penalties', label: 'Penalties', icon: Timer },
+        ],
+    },
+    {
+        label: 'CONFIGURE',
+        items: [{ path: '/admin/pricing', label: 'Pricing & Rules', icon: IndianRupee }],
+    },
 ];
 
 interface AdminSidebarProps {
@@ -29,11 +52,6 @@ interface AdminSidebarProps {
     onToggle: () => void;
 }
 
-/**
- * Press Room nav rail: a quiet ink dock under the header. Active station is
- * marked with a lifted row + the amber "operating" dot — the same status-dot
- * language the brand uses everywhere else.
- */
 const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggle }) => {
     const navigate = useNavigate();
     const [isLoggingOut, setIsLoggingOut] = React.useState(false);
@@ -53,76 +71,79 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ collapsed, onToggle }) => {
     return (
         <aside
             className={clsx(
-                'fixed left-0 top-16 bottom-0 z-30 flex flex-col border-r border-white/8 bg-black/25 py-4 transition-[width] duration-300 ease-out',
-                collapsed ? 'w-[76px] px-3' : 'w-[248px] px-4',
+                'dock sticky top-[88px] z-10 flex shrink-0 flex-col p-2.5 transition-[width] duration-300 ease-out',
+                collapsed ? 'w-[62px]' : 'w-[216px]',
             )}
+            style={{ maxHeight: 'calc(100vh - 108px)' }}
         >
-            <nav className="flex-1 space-y-1">
-                {NAV_ITEMS.map((item) => (
-                    <NavLink
-                        key={item.path}
-                        to={item.path}
-                        title={item.label}
-                        className={({ isActive }) =>
-                            clsx(
-                                'group flex items-center rounded-[14px] text-[14px] font-semibold transition-colors duration-200',
-                                collapsed ? 'justify-center size-11 mx-auto' : 'gap-3 h-11 px-3.5',
-                                isActive
-                                    ? 'bg-white/10 text-white'
-                                    : 'text-white/50 hover:bg-white/6 hover:text-white/90',
-                            )
-                        }
-                    >
-                        {({ isActive }) => (
-                            <>
-                                <item.icon size={18} strokeWidth={2} className="shrink-0" />
-                                {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-                                {!collapsed && (
-                                    <span
-                                        className={clsx(
-                                            'size-1.5 rounded-full transition-opacity duration-200',
-                                            isActive ? 'bg-accent-secondary opacity-100' : 'opacity-0',
-                                        )}
-                                    />
-                                )}
-                            </>
+            <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+                {GROUPS.map((group, gi) => (
+                    <div key={group.label}>
+                        {collapsed ? (
+                            gi > 0 && <div className="mx-2 my-2.5 h-px bg-white/8" />
+                        ) : (
+                            <p className={clsx('dock-label px-3 pb-1.5', gi === 0 ? 'pt-1.5' : 'pt-4')}>
+                                {group.label}
+                            </p>
                         )}
-                    </NavLink>
+                        <div className="space-y-0.5">
+                            {group.items.map((item) => (
+                                <NavLink
+                                    key={item.path}
+                                    to={item.path}
+                                    title={item.label}
+                                    className={({ isActive }) =>
+                                        clsx('station', collapsed && 'justify-center px-0', isActive && 'on')
+                                    }
+                                >
+                                    {({ isActive }) => (
+                                        <>
+                                            <item.icon size={17} strokeWidth={2} className="shrink-0" />
+                                            {!collapsed && (
+                                                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                                            )}
+                                            {!collapsed && isActive && <span className="led led--amber" />}
+                                        </>
+                                    )}
+                                </NavLink>
+                            ))}
+                        </div>
+                    </div>
                 ))}
             </nav>
 
-            <div className="space-y-1 border-t border-white/8 pt-3">
+            <div className="mt-2 space-y-0.5 border-t border-white/8 pt-2">
                 <button
+                    type="button"
                     onClick={onToggle}
                     title={collapsed ? 'Expand menu' : 'Collapse menu'}
-                    className={clsx(
-                        'flex items-center rounded-[14px] text-[13.5px] font-semibold text-white/45 hover:bg-white/6 hover:text-white/85 transition-colors duration-200',
-                        collapsed ? 'justify-center size-11 mx-auto' : 'gap-3 h-11 w-full px-3.5',
-                    )}
+                    className={clsx('station w-full', collapsed && 'justify-center px-0')}
                 >
                     {collapsed ? (
-                        <PanelLeftOpen size={18} strokeWidth={2} />
+                        <PanelLeftOpen size={17} strokeWidth={2} className="shrink-0" />
                     ) : (
-                        <PanelLeftClose size={18} strokeWidth={2} />
+                        <PanelLeftClose size={17} strokeWidth={2} className="shrink-0" />
                     )}
-                    {!collapsed && <span>Collapse</span>}
+                    {!collapsed && <span className="min-w-0 flex-1 truncate text-left">Collapse</span>}
                 </button>
                 <button
+                    type="button"
                     onClick={handleLogout}
                     disabled={isLoggingOut}
                     title="Log out"
                     className={clsx(
-                        'flex items-center rounded-[14px] text-[13.5px] font-semibold text-[#ff8d85] hover:bg-[#ff453a]/10 transition-colors duration-200 disabled:opacity-50',
-                        collapsed ? 'justify-center size-11 mx-auto' : 'gap-3 h-11 w-full px-3.5',
+                        'station w-full !text-[#ff8d85] hover:!bg-[#ff453a]/10 disabled:opacity-50',
+                        collapsed && 'justify-center px-0',
                     )}
                 >
                     {isLoggingOut ? (
-                        <Loader2 size={18} className="animate-spin shrink-0" />
+                        <Loader2 size={17} className="shrink-0 animate-spin" />
                     ) : (
-                        <LogOut size={18} strokeWidth={2} className="shrink-0" />
+                        <LogOut size={17} strokeWidth={2} className="shrink-0" />
                     )}
-                    {!collapsed && <span>Log out</span>}
+                    {!collapsed && <span className="min-w-0 flex-1 truncate text-left">Log out</span>}
                 </button>
+                {!collapsed && <p className="dock-label px-3 pb-1 pt-2.5 text-center">PRESS ROOM</p>}
             </div>
         </aside>
     );

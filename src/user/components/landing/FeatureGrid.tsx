@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { KeyRound, MapPin, SlidersHorizontal } from 'lucide-react'
+import { KeyRound, MapPin, SlidersHorizontal, Wallet } from 'lucide-react'
 import { StatusTimeline } from '@/components/app/StatusTimeline'
 import { staggerParent, fadeSlideChild } from '@/lib/motion'
 
@@ -15,6 +15,11 @@ const FEATURES = [
     body: 'Full documents or pages 4–9 only: print precisely what you need, priced per page.',
   },
   {
+    icon: Wallet,
+    title: 'Clear totals, paid online',
+    body: 'Razorpay checkout with the exact price shown before you confirm — no cash at the counter.',
+  },
+  {
     icon: MapPin,
     title: 'Every campus location',
     body: 'Print hubs across campus — send the job to whichever stack suits your route.',
@@ -28,21 +33,21 @@ const FEATURES = [
  */
 export function FeatureGrid() {
   return (
-    <section id="features" className="bg-chip/40 py-20 sm:py-28">
+    <section id="features" className="bg-white border-y border-line/60 py-20 sm:py-24">
       <div className="mx-auto max-w-[1180px] px-4 sm:px-6">
         <motion.div
           variants={fadeSlideChild}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: '-80px' }}
-          className="max-w-[620px] mb-12"
+          className="max-w-[640px] mx-auto text-center mb-12 sm:mb-14"
         >
           <h2 className="text-[32px] sm:text-[40px] font-extrabold tracking-[-0.8px] text-ink leading-tight text-balance">
             Everything a print queue should be.
           </h2>
         </motion.div>
 
-        <div className="grid lg:grid-cols-12 gap-6 lg:gap-8 items-stretch">
+        <div className="grid lg:grid-cols-12 gap-12 lg:gap-10 items-stretch">
           {/* live status panel */}
           <motion.div
             variants={fadeSlideChild}
@@ -69,7 +74,7 @@ export function FeatureGrid() {
                 pickup.
               </p>
               <div className="mt-8">
-                <StatusTimeline status="PRINTING" />
+                <StatusTimeline status="PRINTING" onDark />
               </div>
             </div>
           </motion.div>
@@ -86,9 +91,9 @@ export function FeatureGrid() {
               <motion.div
                 key={f.title}
                 variants={fadeSlideChild}
-                className="flex items-start gap-5 py-7 first:pt-2 last:pb-2"
+                className="flex items-start gap-5 py-6 first:pt-2 last:pb-2"
               >
-                <span className="grid place-items-center size-12 rounded-[15px] bg-white border border-line/70 shrink-0 shadow-card">
+                <span className="grid place-items-center size-12 rounded-btn bg-chip border border-line/60 shrink-0">
                   <f.icon size={19} strokeWidth={1.8} className="text-ink" />
                 </span>
                 <div className="min-w-0">

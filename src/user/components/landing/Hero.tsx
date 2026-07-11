@@ -11,7 +11,7 @@ export function Hero() {
   const isLoggedIn = useAppStore((s) => !!s.user)
 
   return (
-    <section className="relative mx-auto max-w-[1180px] px-4 sm:px-6 pt-14 pb-24 sm:pt-20 sm:pb-32 grid lg:grid-cols-12 gap-14 lg:gap-10 items-center">
+    <section className="relative mx-auto max-w-[1180px] px-4 sm:px-6 pt-14 pb-24 sm:pt-20 sm:pb-32 grid lg:grid-cols-12 gap-12 lg:gap-10 items-center">
       <motion.div
         variants={staggerParent()}
         initial="hidden"
@@ -83,7 +83,7 @@ export function Hero() {
         </motion.p>
       </motion.div>
 
-      <div className="lg:col-span-5">
+      <div className="lg:col-span-5 min-w-0">
         <PressScene />
       </div>
     </section>
@@ -152,7 +152,6 @@ function PressScene() {
           style={{ transformOrigin: 'top center' }}
         >
           <TicketCard
-            className="shadow-ticket"
             top={
               <div>
                 <div className="flex items-center gap-3">

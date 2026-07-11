@@ -16,13 +16,13 @@ export function PricingSection() {
   const rows = PRICE_TABLE.filter((r) => r.size === size)
 
   return (
-    <section id="pricing" className="mx-auto max-w-[1180px] px-4 sm:px-6 py-20 sm:py-28">
+    <section id="pricing" className="mx-auto max-w-[1180px] px-4 sm:px-6 py-24 sm:py-32">
       <motion.div
         variants={staggerParent(0.1)}
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: '-80px' }}
-        className="grid lg:grid-cols-12 gap-12 lg:gap-8"
+        className="grid lg:grid-cols-12 gap-12 lg:gap-10"
       >
         {/* left: heading + the rate ticket */}
         <div className="lg:col-span-5">
@@ -35,7 +35,7 @@ export function PricingSection() {
             </p>
           </motion.div>
 
-          <motion.div variants={fadeSlideChild} className="mt-8 max-w-[380px]">
+          <motion.div variants={fadeSlideChild} className="mt-8">
             <TicketCard
               top={
                 <div className="flex items-end justify-between py-1">
@@ -64,7 +64,7 @@ export function PricingSection() {
         </div>
 
         {/* right: the full tariff */}
-        <motion.div variants={fadeSlideChild} className="lg:col-span-7 lg:pl-6">
+        <motion.div variants={fadeSlideChild} className="lg:col-span-7">
           <div className="flex items-center justify-between gap-4 mb-5">
             <h3 className="text-[17px] font-extrabold text-ink tracking-[-0.2px]">
               Full tariff
@@ -95,10 +95,12 @@ export function PricingSection() {
                 </span>
               </div>
             ))}
+            <div className="mt-1 rounded-[16px] bg-chip/60 px-4 sm:px-5 py-3">
+              <p className="font-receipt text-[11.5px] font-bold tracking-[0.5px] text-muted">
+                RATES SET BY THE CAMPUS PRESS · UPDATED LIVE IN THE APP
+              </p>
+            </div>
           </div>
-          <p className="mt-4 font-receipt text-[12px] font-bold text-muted">
-            RATES SET BY THE CAMPUS PRESS · UPDATED LIVE IN THE APP
-          </p>
         </motion.div>
       </motion.div>
     </section>

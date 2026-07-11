@@ -3,39 +3,51 @@
 /* ————————————————————————————————————————————————————————————————
    PRESS ROOM — the Admin mode stylesheet.
 
-   Admin mode is the back-of-house of the same print shop: the exact
-   PrintEase material system (ink surfaces, dot grid, hairline strokes,
-   the green "ready" accent, Plus Jakarta Sans) permanently in dark.
+   Night shift at the press: the room is dark, the machines are lit.
+   Three planes give the mode its depth —
 
-   EVERY rule here is scoped under `.admin-scope` so nothing can bleed
-   into the storefront (landing / auth / user app). The admin root
-   element carries both `admin-scope` and `dark` (the class the
-   `dark:` variant keys off — scoped to admin, never on <html>).
+     L0  the room      — fixed atmospheric backdrop (amber work-lamp,
+                         cool paper reflection, dot plate, vignette)
+     L1  the benches   — OPAQUE ink panels that carry content. Never
+                         translucent: data stays readable.
+     L2  the chrome    — floating glass (header, nav dock, dialogs,
+                         slide-overs). Translucency here means
+                         "this floats above your work", nowhere else.
+
+   EVERY rule is scoped under `.admin-scope` so nothing bleeds into
+   the storefront. The admin root carries `admin-scope dark` (the
+   `dark:` variant key — scoped here, never on <html>).
+
+   Z scale: backdrop 0 · content 1 · dock 10 · header 40 · overlay 50
+   Radii   : panel 18 · well 12 · control 10 · chip 7 · modal 22
    ———————————————————————————————————————————————————————————————— */
 
 @variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Ink palette — the PrintEase dark-panel world, promoted to a full mode.
-     Token NAMES are kept from the legacy admin app so existing page markup
-     (bg-surface, text-text, border-border…) re-skins without edits. */
-  --color-primary: #f0f0f3; /* emphasis text / icons on ink */
-  --color-accent: #34c759; /* THE brand green */
-  --color-accent-secondary: #ff9f0a; /* amber, operational warnings only */
-  --color-admin-bg: #0b0b0d; /* page base — AppColors.black */
-  --color-bg-secondary: #131318; /* wells, list rows */
-  --color-surface: #17171c; /* panels, modals */
-  --color-surface-light: #232329; /* hover wells */
+  /* Ink palette — legacy token NAMES kept so existing markup re-skins. */
+  --color-primary: #f0f0f3;
+  --color-accent: #34c759; /* THE brand green — running / ready / go */
+  --color-accent-secondary: #ff9f0a; /* amber — the Press Room mode mark */
+  --color-admin-bg: #0a0a0d;
+  --color-bg-secondary: #101014; /* wells, inset rows */
+  --color-surface: #15151a; /* bench panels */
+  --color-surface-light: #1d1d23; /* hover wells */
   --color-text: #f4f4f6;
-  --color-text-secondary: #c9c9d1;
-  --color-text-muted: #8e8e93; /* same muted as the storefront */
-  --color-border: rgb(255 255 255 / 0.1);
+  --color-text-secondary: #b9b9c2;
+  --color-text-muted: #8a8a92;
+  --color-border: rgb(255 255 255 / 0.08);
+  --color-danger: #ff453a;
 
   --font-heading: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
   --font-body: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  /* The press's own voice — reference ids, money, timestamps. */
+  --font-receipt: "Courier Prime", "Courier New", ui-monospace, monospace;
+
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-/* ————— Admin base (scoped) ————— */
+/* ————— Base ————— */
 
 .admin-scope {
   font-family: var(--font-body);
@@ -61,7 +73,7 @@
   border-radius: 6px;
 }
 
-/* ————— The press bed — quiet ink backdrop, no imagery ————— */
+/* ————— L0 · the room ————— */
 
 .press-backdrop {
   position: fixed;
@@ -69,150 +81,498 @@
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(1100px 520px at 82% -10%, rgb(52 199 89 / 0.05), transparent 64%),
-    radial-gradient(900px 600px at -12% 108%, rgb(255 255 255 / 0.035), transparent 60%),
-    linear-gradient(to bottom, #101014, #0b0b0d 46%);
+    /* amber work-lamp, high right — the mode's signature light */
+    radial-gradient(1200px 640px at 84% -12%, rgb(255 159 10 / 0.055), transparent 62%),
+    /* green standby glow, far left shoulder — barely there */
+    radial-gradient(700px 420px at 4% 12%, rgb(52 199 89 / 0.03), transparent 60%),
+    /* cool paper reflection rising from the floor */
+    radial-gradient(1000px 620px at 30% 112%, rgb(200 205 220 / 0.045), transparent 58%),
+    linear-gradient(to bottom, #101015, #0a0a0d 52%);
 }
 
-/* The brand dot grid, faded up from the bottom like a press plate. */
+/* The press plate: brand dot grid, strongest at the floor. */
+.press-backdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgb(255 255 255 / 0.05) 1.2px, transparent 1.3px);
+  background-size: 24px 24px;
+  mask-image: linear-gradient(to top, black, transparent 68%);
+}
+
+/* Soft vignette keeps the eye on the work. */
 .press-backdrop::after {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(rgb(255 255 255 / 0.055) 1.2px, transparent 1.3px);
-  background-size: 24px 24px;
-  mask-image: linear-gradient(to top, black, transparent 72%);
+  background: radial-gradient(140% 120% at 50% 38%, transparent 58%, rgb(0 0 0 / 0.32));
 }
 
-/* ————— Panels ————— */
+/* ————— L1 · benches (opaque content panels) ————— */
 
+.admin-scope .panel {
+  background: linear-gradient(to bottom, #17171d, #111116);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 18px;
+  /* machined top lip + grounded shadow */
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.055),
+    0 1px 2px rgb(0 0 0 / 0.4),
+    0 16px 40px -18px rgb(0 0 0 / 0.6);
+}
+
+/* Inset well — list rows, slots, quiet sub-surfaces inside a panel. */
+.admin-scope .well {
+  background: rgb(255 255 255 / 0.03);
+  border: 1px solid rgb(255 255 255 / 0.06);
+  border-radius: 12px;
+  transition:
+    background 0.18s var(--ease-out-quart),
+    border-color 0.18s var(--ease-out-quart);
+}
+
+.admin-scope .well-hover:hover {
+  background: rgb(255 255 255 / 0.05);
+  border-color: rgb(255 255 255 / 0.11);
+}
+
+/* Legacy alias — anything still saying .card gets a bench. */
 .admin-scope .card {
-  background: linear-gradient(to bottom, #1a1a20, #131318);
+  background: linear-gradient(to bottom, #17171d, #111116);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: 18px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.055),
+    0 16px 40px -18px rgb(0 0 0 / 0.6);
+}
+
+/* ————— L2 · chrome (floating glass) ————— */
+
+.admin-scope .glass {
+  background: rgb(15 15 19 / 0.72);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  backdrop-filter: blur(24px) saturate(1.5);
   border: 1px solid rgb(255 255 255 / 0.09);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 24px 60px -20px rgb(0 0 0 / 0.7);
+}
+
+/* The nav dock — a glass island with a light-catching top edge. */
+.admin-scope .dock {
+  background: linear-gradient(to bottom, rgb(22 22 28 / 0.62), rgb(13 13 17 / 0.66));
+  -webkit-backdrop-filter: blur(28px) saturate(1.5);
+  backdrop-filter: blur(28px) saturate(1.5);
+  border: 1px solid rgb(255 255 255 / 0.08);
   border-radius: 20px;
-  box-shadow: 0 10px 24px -8px rgb(0 0 0 / 0.5);
-  transition: border-color 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.09),
+    inset 0 -1px 0 rgb(0 0 0 / 0.4),
+    0 20px 50px -18px rgb(0 0 0 / 0.65);
 }
 
-.admin-scope .card:hover {
-  border-color: rgb(255 255 255 / 0.15);
+/* Dock station rows. */
+.admin-scope .station {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  border-radius: 12px;
+  padding: 0 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: rgb(244 244 246 / 0.52);
+  transition:
+    background 0.16s var(--ease-out-quart),
+    color 0.16s var(--ease-out-quart);
 }
 
-.admin-scope .card-glass {
-  background: linear-gradient(to bottom, #1c1c22, #131318);
-  border: 1px solid rgb(255 255 255 / 0.11);
-  border-radius: 24px;
-  box-shadow: 0 20px 44px -12px rgb(0 0 0 / 0.6);
+.admin-scope .station:hover {
+  background: rgb(255 255 255 / 0.05);
+  color: rgb(244 244 246 / 0.92);
+}
+
+.admin-scope .station svg {
+  transition: transform 0.18s var(--ease-out-quart);
+}
+
+.admin-scope .station:hover svg {
+  transform: translateX(1px);
+}
+
+.admin-scope .station.on {
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.06));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 2px 8px rgb(0 0 0 / 0.3);
+  color: #ffffff;
+}
+
+/* Group labels between stations — the dock speaks receipt. */
+.admin-scope .dock-label {
+  font-family: var(--font-receipt);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: rgb(244 244 246 / 0.28);
+}
+
+/* ————— Status LEDs ————— */
+
+.admin-scope .led {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.admin-scope .led--ok    { background: #34c759; box-shadow: 0 0 6px rgb(52 199 89 / 0.8); }
+.admin-scope .led--amber { background: #ff9f0a; box-shadow: 0 0 6px rgb(255 159 10 / 0.8); }
+.admin-scope .led--bad   { background: #ff453a; box-shadow: 0 0 6px rgb(255 69 58 / 0.8); }
+.admin-scope .led--off   { background: rgb(255 255 255 / 0.22); }
+
+.admin-scope .led--pulse {
+  animation: press-led 1.6s ease-in-out infinite;
+}
+
+@keyframes press-led {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ————— Status chips (single vocabulary, everywhere) ————— */
+
+.admin-scope .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.admin-scope .chip .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.admin-scope .chip .dot--pulse {
+  animation: press-led 1.6s ease-in-out infinite;
+}
+
+.admin-scope .chip--ok    { color: #58d97e; background: rgb(52 199 89 / 0.1);  border-color: rgb(52 199 89 / 0.16); }
+.admin-scope .chip--wait  { color: #ffb340; background: rgb(255 159 10 / 0.1); border-color: rgb(255 159 10 / 0.16); }
+.admin-scope .chip--bad   { color: #ff7a70; background: rgb(255 69 58 / 0.1);  border-color: rgb(255 69 58 / 0.16); }
+.admin-scope .chip--idle  { color: #a9a9b2; background: rgb(255 255 255 / 0.06); border-color: rgb(255 255 255 / 0.09); }
+.admin-scope .chip--dim   { color: rgb(169 169 178 / 0.72); background: rgb(255 255 255 / 0.035); border-color: rgb(255 255 255 / 0.06); }
+.admin-scope .chip--paper { color: #0b0b0d; background: #e9e9ee; border-color: #ffffff; }
+
+/* A chip that advances the job when clicked. */
+.admin-scope button.chip {
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.admin-scope button.chip:hover:not(:disabled) {
+  filter: brightness(1.25);
+}
+
+.admin-scope button.chip:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.admin-scope button.chip:disabled {
+  cursor: default;
+}
+
+/* ————— Tables ————— */
+
+.admin-scope .tbl {
+  width: 100%;
+  font-size: 13.5px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-scope .tbl thead th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: rgb(244 244 246 / 0.42);
+  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+  white-space: nowrap;
+}
+
+.admin-scope .tbl tbody td {
+  padding: 13px 16px;
+  border-top: 1px solid rgb(255 255 255 / 0.05);
+  vertical-align: middle;
+}
+
+.admin-scope .tbl tbody tr {
+  transition: background 0.15s ease;
+}
+
+.admin-scope .tbl tbody tr:hover {
+  background: rgb(255 255 255 / 0.03);
+}
+
+.admin-scope .tbl tbody tr:first-child td {
+  border-top: none;
+}
+
+/* Numbers, ids, money, timestamps — the machine speaks mono. */
+.admin-scope .mono {
+  font-family: var(--font-receipt);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ————— The receipt (Overview day ticket, header meta lines) ————— */
+
+.admin-scope .receipt-line {
+  font-family: var(--font-receipt);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: rgb(244 244 246 / 0.45);
+}
+
+.admin-scope .receipt-rule {
+  height: 1px;
+  background-image: repeating-linear-gradient(
+    to right,
+    rgb(255 255 255 / 0.16) 0 5px,
+    transparent 5px 10px
+  );
 }
 
 /* ————— Buttons ————— */
 
-/* Paper-on-ink primary action: the storefront's ink button, inverted. */
+/* Paper-on-ink primary — the press's one loud control. */
 .admin-scope .press-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: linear-gradient(to bottom, #ffffff, #e9e9ee);
+  height: 40px;
+  padding: 0 18px;
+  background: linear-gradient(to bottom, #ffffff, #e7e7ec);
   color: #0b0b0d;
   font-weight: 700;
-  border-radius: 12px;
+  font-size: 13.5px;
+  border-radius: 11px;
   border: 1px solid rgb(255 255 255 / 0.85);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.9);
+  box-shadow:
+    0 2px 10px rgb(0 0 0 / 0.45),
+    inset 0 1px 0 rgb(255 255 255 / 0.95),
+    inset 0 -1px 2px rgb(0 0 0 / 0.06);
   transition:
     transform 110ms ease-out,
-    filter 0.2s ease;
+    filter 0.18s ease;
 }
 
-.admin-scope .press-btn:hover {
-  filter: brightness(1.04);
+.admin-scope .press-btn:hover { filter: brightness(1.05); }
+.admin-scope .press-btn:active { transform: scale(0.97); }
+.admin-scope .press-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Quiet bordered action. */
+.admin-scope .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(244 244 246 / 0.65);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(255 255 255 / 0.03);
+  transition:
+    background 0.18s var(--ease-out-quart),
+    border-color 0.18s var(--ease-out-quart),
+    color 0.18s var(--ease-out-quart),
+    transform 110ms ease-out;
 }
 
-.admin-scope .press-btn:active {
-  transform: scale(0.97);
+.admin-scope .btn-ghost:hover {
+  background: rgb(255 255 255 / 0.07);
+  border-color: rgb(255 255 255 / 0.16);
+  color: #ffffff;
 }
 
-.admin-scope .press-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+.admin-scope .btn-ghost:active { transform: scale(0.97); }
+.admin-scope .btn-ghost:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Destructive ghost — quiet until hovered, then certain. */
+.admin-scope .btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ff8d85;
+  border: 1px solid rgb(255 69 58 / 0.24);
+  background: rgb(255 69 58 / 0.05);
+  transition:
+    background 0.18s var(--ease-out-quart),
+    border-color 0.18s var(--ease-out-quart),
+    transform 110ms ease-out;
 }
 
-/* Quiet secondary pill. */
+.admin-scope .btn-danger:hover {
+  background: rgb(255 69 58 / 0.14);
+  border-color: rgb(255 69 58 / 0.4);
+}
+
+.admin-scope .btn-danger:active { transform: scale(0.97); }
+.admin-scope .btn-danger:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Bare icon action, revealed by row hover where noted. */
+.admin-scope .icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: rgb(244 244 246 / 0.55);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.admin-scope .icon-btn:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: #ffffff;
+}
+
+.admin-scope .icon-btn:active { transform: scale(0.92); }
+
+.admin-scope .icon-btn--danger:hover {
+  background: rgb(255 69 58 / 0.12);
+  color: #ff8d85;
+}
+
+/* Legacy alias kept for stragglers. */
 .admin-scope .btn-pill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 22px;
-  border-radius: 999px;
+  padding: 10px 18px;
+  border-radius: 11px;
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: 13px;
   cursor: pointer;
-  border: 1px solid rgb(255 255 255 / 0.12);
-  background: rgb(255 255 255 / 0.05);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(255 255 255 / 0.03);
   color: var(--color-text);
   transition:
-    background 0.25s cubic-bezier(0.25, 1, 0.5, 1),
-    border-color 0.25s cubic-bezier(0.25, 1, 0.5, 1),
-    color 0.25s cubic-bezier(0.25, 1, 0.5, 1),
+    background 0.18s var(--ease-out-quart),
+    border-color 0.18s var(--ease-out-quart),
     transform 110ms ease-out;
 }
 
 .admin-scope .btn-pill:hover {
-  background: #f4f4f6;
-  border-color: #f4f4f6;
-  color: #0b0b0d;
+  background: rgb(255 255 255 / 0.07);
+  border-color: rgb(255 255 255 / 0.16);
 }
 
-.admin-scope .btn-pill:active {
-  transform: scale(0.97);
-}
+.admin-scope .btn-pill:active { transform: scale(0.97); }
 
-.admin-scope .btn-pill-filled {
+/* ————— Segmented filter (status rails) ————— */
+
+.admin-scope .seg {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 22px;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: 13.5px;
-  cursor: pointer;
-  border: 1px solid #f4f4f6;
-  background: #f4f4f6;
-  color: #0b0b0d;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 11px;
+  background: rgb(255 255 255 / 0.04);
+  border: 1px solid rgb(255 255 255 / 0.07);
+}
+
+.admin-scope .seg button {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(244 244 246 / 0.5);
+  white-space: nowrap;
   transition:
-    filter 0.2s ease,
-    transform 110ms ease-out;
+    background 0.16s var(--ease-out-quart),
+    color 0.16s var(--ease-out-quart);
 }
 
-.admin-scope .btn-pill-filled:hover {
-  filter: brightness(1.05);
-}
+.admin-scope .seg button:hover { color: rgb(244 244 246 / 0.85); }
 
-.admin-scope .btn-pill-filled:active {
-  transform: scale(0.97);
+.admin-scope .seg button.on {
+  background: linear-gradient(to bottom, #ffffff, #e7e7ec);
+  color: #0b0b0d;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.4);
 }
 
 /* ————— Form controls ————— */
+
+.admin-scope .ctl {
+  height: 40px;
+  width: 100%;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  color: var(--color-text);
+  background: rgb(255 255 255 / 0.04);
+  border: 1px solid rgb(255 255 255 / 0.09);
+}
+
+.admin-scope textarea.ctl { height: auto; padding: 10px 12px; }
+
+.admin-scope .f-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(244 244 246 / 0.55);
+  margin-bottom: 6px;
+}
 
 .admin-scope input[type="email"],
 .admin-scope input[type="password"],
 .admin-scope input[type="text"],
 .admin-scope input[type="number"],
 .admin-scope input[type="search"],
+.admin-scope input[type="date"],
 .admin-scope select,
 .admin-scope textarea {
   background: rgb(255 255 255 / 0.04);
-  border-color: rgb(255 255 255 / 0.1);
+  border-color: rgb(255 255 255 / 0.09);
   color: var(--color-text);
   transition:
-    border-color 0.25s cubic-bezier(0.25, 1, 0.5, 1),
-    box-shadow 0.25s cubic-bezier(0.25, 1, 0.5, 1),
-    background 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+    border-color 0.2s var(--ease-out-quart),
+    box-shadow 0.2s var(--ease-out-quart),
+    background 0.2s var(--ease-out-quart);
 }
 
 .admin-scope input::placeholder,
 .admin-scope textarea::placeholder {
-  color: rgb(244 244 246 / 0.38);
+  color: rgb(244 244 246 / 0.35);
 }
 
 .admin-scope input:focus,
@@ -221,11 +581,15 @@
   border-color: rgb(52 199 89 / 0.55);
   box-shadow: 0 0 0 3px rgb(52 199 89 / 0.12);
   outline: none;
+  background: rgb(255 255 255 / 0.06);
 }
 
-/* Native select popups follow the ink theme. */
+.admin-scope input[type="date"] { color-scheme: dark; }
+
 .admin-scope select {
   color-scheme: dark;
+  appearance: none;
+  cursor: pointer;
 }
 
 .admin-scope select option {
@@ -236,4 +600,108 @@
 .admin-scope select option:checked {
   background-color: #103d1f;
   color: #ffffff;
+}
+
+/* ————— Overlays ————— */
+
+.admin-scope .overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgb(5 5 8 / 0.55);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: press-fade 0.18s var(--ease-out-quart);
+}
+
+.admin-scope .dialog {
+  background: linear-gradient(to bottom, rgb(26 26 33 / 0.92), rgb(16 16 21 / 0.94));
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  backdrop-filter: blur(28px) saturate(1.4);
+  border: 1px solid rgb(255 255 255 / 0.11);
+  border-radius: 22px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 32px 80px -24px rgb(0 0 0 / 0.8);
+  animation: press-pop 0.2s var(--ease-out-quart);
+}
+
+.admin-scope .slideover {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  width: min(440px, 94vw);
+  background: linear-gradient(to bottom, rgb(23 23 29 / 0.9), rgb(14 14 18 / 0.94));
+  -webkit-backdrop-filter: blur(30px) saturate(1.4);
+  backdrop-filter: blur(30px) saturate(1.4);
+  border-left: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow:
+    inset 1px 0 0 rgb(255 255 255 / 0.05),
+    -32px 0 80px -32px rgb(0 0 0 / 0.8);
+  animation: press-slide 0.24s var(--ease-out-quart);
+  overflow-y: auto;
+}
+
+@keyframes press-fade {
+  from { opacity: 0; }
+}
+
+@keyframes press-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+}
+
+@keyframes press-slide {
+  from { transform: translateX(48px); opacity: 0; }
+}
+
+/* Route-level content entrance — one quiet rise, no cascades. */
+.admin-scope .page-enter {
+  animation: press-page 0.22s var(--ease-out-quart);
+}
+
+@keyframes press-page {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+}
+
+/* ————— Skeletons ————— */
+
+.admin-scope .skel {
+  border-radius: 8px;
+  background: linear-gradient(
+    100deg,
+    rgb(255 255 255 / 0.045) 40%,
+    rgb(255 255 255 / 0.09) 50%,
+    rgb(255 255 255 / 0.045) 60%
+  );
+  background-size: 200% 100%;
+  animation: press-skel 1.4s ease-in-out infinite;
+}
+
+@keyframes press-skel {
+  from { background-position: 120% 0; }
+  to { background-position: -80% 0; }
+}
+
+/* ————— Reduced motion ————— */
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-scope .led--pulse,
+  .admin-scope .chip .dot--pulse,
+  .admin-scope .skel {
+    animation: none;
+  }
+  .admin-scope .dialog,
+  .admin-scope .slideover,
+  .admin-scope .overlay-backdrop,
+  .admin-scope .page-enter {
+    animation-duration: 0.01ms;
+  }
 }

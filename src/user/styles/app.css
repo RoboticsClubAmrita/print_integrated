@@ -33,7 +33,6 @@
   --radius-dock: 30px;
 
   --shadow-card: 0 8px 20px rgb(11 11 13 / 0.05);
-  --shadow-ticket: 0 8px 18px rgb(11 11 13 / 0.06);
   --shadow-panel: 0 14px 28px -6px rgb(11 11 13 / 0.25);
   --shadow-dock: 0 16px 32px -6px rgb(0 0 0 / 0.32), 0 3px 8px rgb(0 0 0 / 0.18);
   --shadow-pill: 0 4px 12px rgb(0 0 0 / 0.35);
@@ -152,12 +151,75 @@
   }
 }
 
-/* Punched side notches for the ticket perforation strip: masks a 12px
-   circle out of each edge so any background shows through. */
+/* ————— Ticket motif ————— */
+
+/* The perforation strip is built from three cooperating pieces so the
+   punched notches keep a hairline border and a real shadow along their
+   curve (a plain masked strip loses both — the mask clips the border,
+   and box-shadow ignores the mask):
+
+     <div class="ticket-strip">                       ← height + border arcs
+       <div class="ticket-notches …bg + border-x" />  ← masked white body
+       <div class="perforation" />                    ← dashed tear line
+     </div>
+
+   Set --notch-r on the strip to scale the punch (default 12px);
+   the strip is always exactly one notch-diameter tall so the curve
+   meets the straight edges at their tangents. */
+
+/* Masks a circle out of each edge so any background shows through. */
 @utility ticket-notches {
-  mask-image: radial-gradient(circle 12px at 0% 50%, transparent 11.5px, black 12.5px),
-    radial-gradient(circle 12px at 100% 50%, transparent 11.5px, black 12.5px);
+  mask-image: radial-gradient(
+      circle var(--notch-r, 12px) at 0% 50%,
+      transparent calc(var(--notch-r, 12px) - 0.5px),
+      black calc(var(--notch-r, 12px) + 0.5px)
+    ),
+    radial-gradient(
+      circle var(--notch-r, 12px) at 100% 50%,
+      transparent calc(var(--notch-r, 12px) - 0.5px),
+      black calc(var(--notch-r, 12px) + 0.5px)
+    );
   mask-composite: intersect;
+}
+
+/* Carries the strip's size and paints the hairline arc along each punched
+   curve (above the masked body), so the card's border survives the cutout. */
+@utility ticket-strip {
+  position: relative;
+  height: calc(var(--notch-r, 12px) * 2);
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: radial-gradient(
+        circle var(--notch-r, 12px) at 0% 50%,
+        transparent calc(var(--notch-r, 12px) - 0.75px),
+        var(--color-line) calc(var(--notch-r, 12px) - 0.5px),
+        var(--color-line) calc(var(--notch-r, 12px) + 0.5px),
+        transparent calc(var(--notch-r, 12px) + 0.75px)
+      ),
+      radial-gradient(
+        circle var(--notch-r, 12px) at 100% 50%,
+        transparent calc(var(--notch-r, 12px) - 0.75px),
+        var(--color-line) calc(var(--notch-r, 12px) - 0.5px),
+        var(--color-line) calc(var(--notch-r, 12px) + 0.5px),
+        transparent calc(var(--notch-r, 12px) + 0.75px)
+      );
+  }
+}
+
+/* Notch-aware elevation: filter drop-shadow follows the mask silhouette,
+   so the shadow hugs the punched curves (box-shadow cannot). */
+@utility ticket-lift {
+  filter: drop-shadow(0 1px 2px rgb(11 11 13 / 0.05))
+    drop-shadow(0 8px 10px rgb(11 11 13 / 0.06));
+}
+
+/* Stronger hover elevation for interactive tickets. */
+@utility ticket-lift-strong {
+  filter: drop-shadow(0 2px 3px rgb(11 11 13 / 0.05))
+    drop-shadow(0 12px 14px rgb(11 11 13 / 0.09));
 }
 
 /* Dashed perforation line for ticket cards (6px dash / 5px gap). */

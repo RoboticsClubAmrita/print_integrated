@@ -1,23 +1,30 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { ProfileModeSwitch } from '@/components/app/ProfileModeSwitch';
 import AdminSidebar from './AdminSidebar';
 
-const RAIL_EXPANDED = 248;
-const RAIL_COLLAPSED = 76;
-
 /**
- * The Press Room shell. Same anatomy as the storefront header — brand on the
- * left, the User/Admin capsule in the identical top-right container position —
- * so switching modes swaps the room, not the furniture. A fixed nav rail
- * hangs below the header; content clears both.
+ * The Press Room shell. One 1180px frame carries everything: the glass
+ * header (whose grid mirrors the storefront header exactly, so the mode
+ * capsule lands in the pixel-identical top-right spot in both modes),
+ * the floating nav dock, and the work surface beside it.
+ *
+ * The dock is a sticky glass island inside the same frame — never a
+ * full-height wall — so the room's backdrop stays visible around the
+ * furniture and the whole workspace reads as one aligned object.
  */
 const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [collapsed, setCollapsed] = useState(
-        () => typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches,
-    );
+    const location = useLocation();
+    const [collapsed, setCollapsed] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        const saved = window.localStorage.getItem('press.dock');
+        if (saved === 'min') return true;
+        if (saved === 'max') return false;
+        return window.matchMedia('(max-width: 1023px)').matches;
+    });
 
-    // Auto-collapse the rail on narrow viewports; manual toggle still wins after.
+    // Narrow viewports always fold the dock; a manual choice is remembered.
     useEffect(() => {
         const mq = window.matchMedia('(max-width: 1023px)');
         const onChange = (e: MediaQueryListEvent) => setCollapsed(e.matches);
@@ -25,22 +32,25 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         return () => mq.removeEventListener('change', onChange);
     }, []);
 
-    const rail = collapsed ? RAIL_COLLAPSED : RAIL_EXPANDED;
+    const toggle = () =>
+        setCollapsed((c) => {
+            window.localStorage.setItem('press.dock', c ? 'max' : 'min');
+            return !c;
+        });
 
     return (
-        <div className="relative z-[2] min-h-screen text-text">
-            {/* Header — mirrors the storefront header grid so the mode capsule
-                lands in the pixel-identical spot in both modes. */}
-            <header className="fixed top-0 inset-x-0 z-40 h-16 border-b border-white/8 bg-[#0b0b0d]/80 backdrop-blur-xl">
-                <div className="mx-auto max-w-[1180px] px-4 sm:px-6 h-full flex items-center justify-between">
-                    <span className="inline-flex items-center gap-2.5 select-none">
+        <div className="relative z-[1] min-h-screen text-text">
+            {/* Header — the same grid as the storefront header, in glass. */}
+            <header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-white/8 bg-[#0d0d11]/70 shadow-[inset_0_1px_0_rgb(255_255_255_/_0.06)] backdrop-blur-2xl">
+                <div className="mx-auto flex h-full max-w-[1180px] items-center justify-between px-4 sm:px-6">
+                    <span className="inline-flex select-none items-center gap-2.5">
                         <AppIcon size={34} />
-                        <span className="font-extrabold tracking-[-0.4px] text-[19px] leading-none text-white">
+                        <span className="text-[19px] font-extrabold leading-none tracking-[-0.4px] text-white">
                             PrintEase
                         </span>
-                        <span className="ml-1 inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-white/5 px-2.5 py-1">
-                            <span className="size-1.5 rounded-full bg-accent-secondary" />
-                            <span className="text-[10.5px] font-bold tracking-[0.4px] text-white/70">
+                        <span className="ml-1 inline-flex items-center gap-1.5 rounded-full border border-accent-secondary/25 bg-accent-secondary/8 px-2.5 py-1">
+                            <span className="led led--amber" />
+                            <span className="text-[10.5px] font-bold tracking-[0.4px] text-accent-secondary/90">
                                 Press Room
                             </span>
                         </span>
@@ -49,13 +59,12 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 </div>
             </header>
 
-            <AdminSidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
-
-            <div
-                className="relative pt-16 transition-[margin] duration-300 ease-out"
-                style={{ marginLeft: rail }}
-            >
-                {children}
+            {/* Workspace — dock + work surface in the header's frame. */}
+            <div className="mx-auto flex max-w-[1180px] items-start gap-5 px-4 pt-[88px] pb-16 sm:px-6 lg:gap-7">
+                <AdminSidebar collapsed={collapsed} onToggle={toggle} />
+                <main key={location.pathname} className="page-enter min-w-0 flex-1">
+                    {children}
+                </main>
             </div>
         </div>
     );

@@ -1,7 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { pricingService, configService } from '../services/api';
-import { IndianRupee, Plus, Trash2, Edit3, Loader2, X, Save, RefreshCw, Palette, FileText, Settings, CheckCircle2 } from 'lucide-react';
+import {
+    CheckCircle2,
+    Edit3,
+    FileText,
+    IndianRupee,
+    Loader2,
+    Plus,
+    RefreshCw,
+    Save,
+    Settings,
+    Sprout,
+    Timer,
+    Trash2,
+    X,
+} from 'lucide-react';
+import { Dialog, EmptyState, Field, PageHeader, Panel, SkeletonRows, inr } from '../components/admin/ui';
 
+/**
+ * Pricing & Rules — the tariff the press charges, printed as tariff
+ * tables (one per paper size, the way the storefront prints them), and
+ * the business rules that govern penalties and scheduling.
+ */
 const PricingPage: React.FC = () => {
     const [prices, setPrices] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -130,205 +150,206 @@ const PricingPage: React.FC = () => {
         return acc;
     }, {});
 
-    const inputClass = "w-full bg-bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-text focus:outline-none focus:border-primary transition-colors duration-200";
+    const isColour = (p: any) => p.type === 'colour' || p.type === 'color';
 
     return (
-        <div className="min-h-screen p-6 lg:p-8">
-            <header className="mb-8 max-w-[1200px] mx-auto">
-                <div className="flex items-center justify-between">
+        <>
+            <PageHeader
+                title="Pricing & Rules"
+                meta={`${prices.length} TARIFF ${prices.length === 1 ? 'ENTRY' : 'ENTRIES'} · CHANGES APPLY IMMEDIATELY`}
+                actions={
+                    <>
+                        <button onClick={loadPrices} disabled={loading} className="btn-ghost !px-3" title="Refresh tariff">
+                            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+                        </button>
+                        <button onClick={handleSeed} disabled={seeding} className="btn-ghost">
+                            {seeding ? <Loader2 size={15} className="animate-spin" /> : <Sprout size={15} />} Seed defaults
+                        </button>
+                        <button onClick={() => setShowCreate(true)} className="press-btn">
+                            <Plus size={15} strokeWidth={2.4} /> Add price
+                        </button>
+                    </>
+                }
+            />
+
+            <div className="space-y-5">
+                {/* ————— the tariff ————— */}
+                {loading ? (
+                    <div className="panel"><SkeletonRows rows={5} /></div>
+                ) : prices.length === 0 ? (
+                    <div className="panel">
+                        <EmptyState
+                            icon={IndianRupee}
+                            title="No tariff configured"
+                            hint="Seed the standard campus rates, or add each price entry by hand."
+                            action={
+                                <button onClick={handleSeed} disabled={seeding} className="press-btn">
+                                    {seeding ? <Loader2 size={15} className="animate-spin" /> : <Sprout size={15} />} Seed defaults
+                                </button>
+                            }
+                        />
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+                        {Object.entries(grouped).map(([size, items]) => (
+                            <Panel key={size} title={`${size} tariff`} icon={FileText} bodyClassName="p-2">
+                                {items.map((p: any) => (
+                                    <div
+                                        key={p._id}
+                                        className="group flex items-center gap-3 border-b border-white/5 px-3.5 py-3 last:border-0"
+                                    >
+                                        <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-text">
+                                            {isColour(p) ? 'Colour' : 'B&W'}
+                                            <span className="text-text-muted"> · {p.side === 'double' ? 'Double-sided' : 'Single-sided'}</span>
+                                        </span>
+
+                                        {editingId === p._id ? (
+                                            <span className="flex items-center gap-1.5">
+                                                <span className="relative">
+                                                    <span className="mono pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-text-muted">₹</span>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={editPrice}
+                                                        onChange={e => setEditPrice(e.target.value)}
+                                                        autoFocus
+                                                        onKeyDown={e => { if (e.key === 'Enter') handleSaveEdit(); if (e.key === 'Escape') setEditingId(null); }}
+                                                        className="ctl mono !h-8 w-24 !pl-7 !text-[13px]"
+                                                    />
+                                                </span>
+                                                <button onClick={handleSaveEdit} disabled={saving} title="Save" className="icon-btn !text-accent">
+                                                    {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                                </button>
+                                                <button onClick={() => setEditingId(null)} title="Cancel" className="icon-btn">
+                                                    <X size={14} />
+                                                </button>
+                                            </span>
+                                        ) : (
+                                            <>
+                                                <span className="mono text-[15px] text-text">
+                                                    {inr(p.price)}
+                                                    <span className="ml-1 text-[10.5px] text-text-muted">/ {p.side === 'double' ? 'sheet' : 'page'}</span>
+                                                </span>
+                                                <span className="flex items-center gap-0.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
+                                                    <button onClick={() => startEdit(p)} title="Edit price" className="icon-btn">
+                                                        <Edit3 size={13.5} />
+                                                    </button>
+                                                    <button onClick={() => handleDelete(p._id)} title="Delete entry" className="icon-btn icon-btn--danger">
+                                                        <Trash2 size={13.5} />
+                                                    </button>
+                                                </span>
+                                            </>
+                                        )}
+                                    </div>
+                                ))}
+                            </Panel>
+                        ))}
+                    </div>
+                )}
+
+                {/* ————— business rules ————— */}
+                <div className="flex items-center justify-between gap-4 pt-4">
                     <div>
-                        <h1 className="text-[28px] font-bold tracking-[-0.02em] text-text">Pricing</h1>
-                        <p className="text-sm text-text-muted mt-1">Configure print pricing rules and general business rules.</p>
+                        <h2 className="flex items-center gap-2 text-[16px] font-extrabold tracking-[-0.3px] text-text">
+                            <Settings size={16} className="text-text-muted" /> Business rules
+                        </h2>
+                        <p className="mt-1 text-[12.5px] text-text-muted">
+                            Penalty and scheduling limits — live the moment you save, no deploy required.
+                        </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 text-sm press-btn text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 shadow-sm">
-                            <Plus className="w-4 h-4" /> Add Price
-                        </button>
-                        <button onClick={handleSeed} disabled={seeding} className="flex items-center gap-2 text-sm bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-500 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 shadow-sm">
-                            {seeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Seed Defaults
-                        </button>
-                        <button onClick={loadPrices} disabled={loading} className="flex items-center gap-2 text-sm text-text-muted hover:text-text border border-border px-3 py-2 rounded-lg transition-colors duration-200">
-                            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                        </button>
-                    </div>
+                    <button onClick={loadConfig} disabled={configLoading} className="btn-ghost !h-9 !px-3 text-[12.5px]">
+                        <RefreshCw size={13.5} className={configLoading ? 'animate-spin' : ''} /> Reload
+                    </button>
                 </div>
-            </header>
 
-            <main className="max-w-[1200px] mx-auto space-y-6">
-                <section className="space-y-6">
-                    {loading ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-text-muted card">
-                            <Loader2 className="w-8 h-8 animate-spin mb-3" />
-                            <p>Loading pricing...</p>
-                        </div>
-                    ) : prices.length === 0 ? (
-                        <div className="text-center py-16 text-text-muted card">
-                            <IndianRupee className="w-14 h-14 mx-auto mb-3 opacity-20" />
-                            <p className="font-medium">No pricing configured</p>
-                            <p className="text-sm mt-1">Click "Seed Defaults" to add standard pricing</p>
-                        </div>
-                    ) : (
-                        Object.entries(grouped).map(([size, items]) => (
-                            <div key={size} className="card p-6">
-                                <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-text">
-                                    <FileText className="w-5 h-5 text-primary" /> {size}
-                                </h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                    {items.map((p: any) => (
-                                        <div
-                                            key={p._id}
-                                            className="bg-bg-secondary p-5 rounded-xl border border-border hover:border-primary/30 transition-all duration-200"
-                                        >
-                                            <div className="flex items-center justify-between mb-3">
-                                                <div className="flex items-center gap-2">
-                                                    <Palette className={`w-4 h-4 ${p.type === 'colour' || p.type === 'color' ? 'text-purple-600 dark:text-purple-400' : 'text-text-muted'}`} />
-                                                    <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">
-                                                        {p.type === 'colour' || p.type === 'color' ? 'COLOUR' : 'B&W'} &middot; {p.side === 'double' ? 'Double' : 'Single'}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <button onClick={() => startEdit(p)} className="p-1.5 hover:bg-primary/10 rounded-lg text-primary transition-colors duration-200"><Edit3 className="w-3.5 h-3.5" /></button>
-                                                    <button onClick={() => handleDelete(p._id)} className="p-1.5 hover:bg-accent/10 rounded-lg text-accent transition-colors duration-200"><Trash2 className="w-3.5 h-3.5" /></button>
-                                                </div>
-                                            </div>
-
-                                            {editingId === p._id ? (
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex items-center bg-admin-bg rounded-lg px-3 py-2 flex-1 border border-primary/50">
-                                                        <IndianRupee className="w-4 h-4 text-primary mr-1" />
-                                                        <input type="number" step="0.01" value={editPrice} onChange={e => setEditPrice(e.target.value)} className="bg-transparent text-text text-lg font-bold w-full focus:outline-none" autoFocus />
-                                                    </div>
-                                                    <button onClick={handleSaveEdit} disabled={saving} className="press-btn p-2"><Save className="w-4 h-4" /></button>
-                                                    <button onClick={() => setEditingId(null)} className="p-2 bg-bg-secondary border border-border rounded-lg"><X className="w-4 h-4 text-text-muted" /></button>
-                                                </div>
-                                            ) : (
-                                                <p className="text-3xl font-bold text-primary flex items-center gap-0.5">
-                                                    <IndianRupee className="w-5 h-5" />{p.price?.toFixed(2)}
-                                                    <span className="text-xs text-text-muted font-normal ml-1">/page</span>
-                                                </p>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))
-                    )}
-                </section>
-
-                <hr className="border-border/60 my-10" />
-
-                <section className="space-y-6 max-w-[800px]">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-[22px] font-bold tracking-[-0.01em] text-text flex items-center gap-2">
-                                <Settings className="w-5 h-5 text-primary" /> Business Rules
-                            </h2>
-                            <p className="text-sm text-text-muted mt-1">Penalty and scheduling limits — changes apply immediately, no deploy required.</p>
-                        </div>
-                        <button onClick={loadConfig} disabled={configLoading} className="flex items-center gap-2 text-sm text-text-muted hover:text-text border border-border px-3 py-1.5 rounded-lg transition-colors duration-200">
-                            <RefreshCw className={`w-3.5 h-3.5 ${configLoading ? 'animate-spin' : ''}`} /> Refresh Rules
-                        </button>
-                    </div>
-
-                    {configLoading ? (
-                        <div className="card flex flex-col items-center justify-center py-16 text-text-muted">
-                            <Loader2 className="w-8 h-8 animate-spin mb-3" />
-                            <p>Loading business rules...</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-6">
-                            <div className="card p-6 space-y-5">
-                                <h3 className="font-semibold text-text">Uncollected-Materials Penalty</h3>
-                                <p className="text-xs text-text-muted -mt-3">
-                                    A print job sitting in a stack past the free window accrues a fee every interval, at the rate below.
-                                    Existing penalties keep the rule that was active when they started accruing — this only affects new accrual going forward.
+                {configLoading ? (
+                    <div className="panel"><SkeletonRows rows={3} /></div>
+                ) : (
+                    <>
+                        <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+                            <Panel title="Uncollected-materials penalty" icon={Timer}>
+                                <p className="mb-4 text-[12px] leading-relaxed text-text-muted">
+                                    A job sitting in a stack past the free window accrues a fee every interval.
+                                    Running penalties keep the rule they started under — this only affects new accrual.
                                 </p>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div>
-                                        <label className="block text-xs text-text-muted mb-1.5">Free window (minutes)</label>
-                                        <input type="number" min="0" value={freeMinutes} onChange={e => setFreeMinutes(e.target.value)} className={inputClass} />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs text-text-muted mb-1.5">Billing interval (minutes)</label>
-                                        <input type="number" min="1" value={intervalMinutes} onChange={e => setIntervalMinutes(e.target.value)} className={inputClass} />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs text-text-muted mb-1.5">Rate per interval (₹)</label>
-                                        <input type="number" min="0" step="0.5" value={ratePerInterval} onChange={e => setRatePerInterval(e.target.value)} className={inputClass} />
-                                    </div>
+                                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+                                    <Field label="Free window (min)">
+                                        <input type="number" min="0" value={freeMinutes} onChange={e => setFreeMinutes(e.target.value)} className="ctl mono" />
+                                    </Field>
+                                    <Field label="Interval (min)">
+                                        <input type="number" min="1" value={intervalMinutes} onChange={e => setIntervalMinutes(e.target.value)} className="ctl mono" />
+                                    </Field>
+                                    <Field label="Rate / interval (₹)">
+                                        <input type="number" min="0" step="0.5" value={ratePerInterval} onChange={e => setRatePerInterval(e.target.value)} className="ctl mono" />
+                                    </Field>
                                 </div>
-                            </div>
+                            </Panel>
 
-                            <div className="card p-6 space-y-5">
-                                <h3 className="font-semibold text-text">Print Scheduling</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs text-text-muted mb-1.5">Max days ahead a job can be scheduled</label>
-                                        <input type="number" min="1" value={maxDaysAhead} onChange={e => setMaxDaysAhead(e.target.value)} className={inputClass} />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs text-text-muted mb-1.5">Minimum lead time (minutes)</label>
-                                        <input type="number" min="0" value={minLeadMinutes} onChange={e => setMinLeadMinutes(e.target.value)} className={inputClass} />
-                                    </div>
+                            <Panel title="Print scheduling" icon={Settings}>
+                                <p className="mb-4 text-[12px] leading-relaxed text-text-muted">
+                                    How far ahead a job may be scheduled, and the minimum notice the press needs.
+                                </p>
+                                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                                    <Field label="Max days ahead">
+                                        <input type="number" min="1" value={maxDaysAhead} onChange={e => setMaxDaysAhead(e.target.value)} className="ctl mono" />
+                                    </Field>
+                                    <Field label="Min lead time (min)">
+                                        <input type="number" min="0" value={minLeadMinutes} onChange={e => setMinLeadMinutes(e.target.value)} className="ctl mono" />
+                                    </Field>
                                 </div>
-                            </div>
-
-                            {configError && (
-                                <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg text-accent text-sm">{configError}</div>
-                            )}
-
-                            <button
-                                onClick={handleSaveConfig}
-                                disabled={configSaving}
-                                className="w-full press-btn disabled:opacity-50 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm"
-                            >
-                                {configSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : configSaved ? <CheckCircle2 className="w-5 h-5" /> : <Save className="w-5 h-5" />}
-                                {configSaved ? 'Saved' : 'Save Changes'}
-                            </button>
+                            </Panel>
                         </div>
-                    )}
-                </section>
-            </main>
 
-            {/* Create Modal */}
+                        {configError && (
+                            <p className="chip--bad rounded-[12px] border px-4 py-3 text-[12.5px] font-semibold">{configError}</p>
+                        )}
+
+                        <button onClick={handleSaveConfig} disabled={configSaving} className="press-btn">
+                            {configSaving ? <Loader2 size={15} className="animate-spin" /> : configSaved ? <CheckCircle2 size={15} /> : <Save size={15} />}
+                            {configSaved ? 'Saved' : 'Save rules'}
+                        </button>
+                    </>
+                )}
+            </div>
+
+            {/* Create */}
             {showCreate && (
-                <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowCreate(false)}>
-                    <div className="card p-8 w-full max-w-md" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-bold text-text">Create Price Entry</h3>
-                            <button onClick={() => setShowCreate(false)} className="p-2 hover:bg-bg-secondary rounded-full"><X className="w-5 h-5 text-text-muted" /></button>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-xs text-text-muted mb-1 block">Page Size</label>
-                                <select value={newSize} onChange={e => setNewSize(e.target.value)} className={`${inputClass} appearance-none cursor-pointer`}>
+                <Dialog
+                    title="New price entry"
+                    icon={IndianRupee}
+                    onClose={() => setShowCreate(false)}
+                    closeDisabled={creating}
+                >
+                    <div className="space-y-3.5">
+                        <div className="grid grid-cols-2 gap-3">
+                            <Field label="Page size">
+                                <select value={newSize} onChange={e => setNewSize(e.target.value)} className="ctl pr-8">
                                     <option value="A4">A4</option><option value="A3">A3</option><option value="Letter">Letter</option><option value="Legal">Legal</option>
                                 </select>
-                            </div>
-                            <div>
-                                <label className="text-xs text-text-muted mb-1 block">Print Type</label>
-                                <select value={newType} onChange={e => setNewType(e.target.value)} className={`${inputClass} appearance-none cursor-pointer`}>
+                            </Field>
+                            <Field label="Print type">
+                                <select value={newType} onChange={e => setNewType(e.target.value)} className="ctl pr-8">
                                     <option value="bw">Black & White</option><option value="colour">Colour</option>
                                 </select>
-                            </div>
-                            <div>
-                                <label className="text-xs text-text-muted mb-1 block">Side</label>
-                                <select value={newSide} onChange={e => setNewSide(e.target.value)} className={`${inputClass} appearance-none cursor-pointer`}>
+                            </Field>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <Field label="Side">
+                                <select value={newSide} onChange={e => setNewSide(e.target.value)} className="ctl pr-8">
                                     <option value="single">Single</option><option value="double">Double</option>
                                 </select>
-                            </div>
-                            <div>
-                                <label className="text-xs text-text-muted mb-1 block">Price per Page</label>
-                                <input type="number" step="0.01" value={newPrice} onChange={e => setNewPrice(e.target.value)} placeholder="2.50" className={inputClass} />
-                            </div>
-                            <button onClick={handleCreate} disabled={creating} className="w-full press-btn text-white font-medium rounded-lg py-3 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm mt-2">
-                                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Create
-                            </button>
+                            </Field>
+                            <Field label="Price per page (₹)">
+                                <input type="number" step="0.01" value={newPrice} onChange={e => setNewPrice(e.target.value)} placeholder="2.50" className="ctl mono" />
+                            </Field>
                         </div>
+                        <button onClick={handleCreate} disabled={creating || !newPrice} className="press-btn mt-1 w-full">
+                            {creating ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} strokeWidth={2.4} />} Create entry
+                        </button>
                     </div>
-                </div>
+                </Dialog>
             )}
-        </div>
+        </>
     );
 };
 

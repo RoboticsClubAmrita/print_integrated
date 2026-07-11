@@ -23,7 +23,7 @@ export function LandingFooter() {
 
       <div className="relative mx-auto max-w-[1180px] px-4 sm:px-6">
         {/* closing CTA */}
-        <div className="py-16 sm:py-20 grid lg:grid-cols-12 gap-10 items-center">
+        <div className="py-16 sm:py-20 grid lg:grid-cols-12 gap-12 lg:gap-10 items-center">
           <div className="lg:col-span-7 text-center lg:text-left">
             <h2 className="text-[30px] sm:text-[38px] font-extrabold tracking-[-0.8px] leading-tight text-white text-balance">
               Ready to skip the queue?
@@ -67,7 +67,7 @@ export function LandingFooter() {
 
         {/* the stub */}
         <div className="py-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-12">
-          <div className="lg:col-span-6">
+          <div className="sm:col-span-2 lg:col-span-6">
             <BrandMark onDark size={36} />
             <p className="mt-4 text-[14px] font-medium text-white/50 max-w-[300px]">
               Campus printing, minus the queue.

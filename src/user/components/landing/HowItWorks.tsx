@@ -12,7 +12,7 @@ import { clsx } from 'clsx'
  */
 export function HowItWorks() {
   return (
-    <section id="how-it-works" className="mx-auto max-w-[1180px] px-4 sm:px-6 py-20 sm:py-28">
+    <section id="how-it-works" className="mx-auto max-w-[1180px] px-4 sm:px-6 pt-16 pb-24 sm:pt-20 sm:pb-32">
       <motion.div
         variants={fadeSlideChild}
         initial="hidden"
@@ -28,35 +28,44 @@ export function HowItWorks() {
         </p>
       </motion.div>
 
-      <motion.div
-        variants={fadeSlideChild}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: '-60px' }}
-      >
-        {/* sheet header */}
-        <div className="bg-white border border-line/80 border-b-0 rounded-t-[24px] px-6 sm:px-8 py-5 flex items-center justify-between gap-4">
-          <p className="font-receipt text-[12.5px] font-bold tracking-[2px] text-ink whitespace-nowrap">
-            PRINTEASE · JOB SHEET
-          </p>
-          <p className="hidden sm:block font-receipt text-[12.5px] font-bold tracking-[1px] text-muted whitespace-nowrap">
-            6 STATIONS · ~2 MIN
-          </p>
-        </div>
+      <div className="relative">
+        {/* the press bed the sheet rests on */}
+        <div
+          aria-hidden
+          className="absolute -inset-x-4 -top-10 -bottom-8 sm:-inset-x-6 bg-dots-ink [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_74%)] pointer-events-none"
+        />
 
-        {/* perforation strip with punched notches */}
-        <div className="ticket-notches relative h-6 bg-white border-x border-line/80">
-          <div aria-hidden className="absolute inset-y-0 inset-x-8 perforation" />
-        </div>
-
-        {/* the stations */}
         <motion.div
-          variants={staggerParent(0.06)}
+          variants={fadeSlideChild}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: '-40px' }}
-          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-line/60 border border-line/80 border-t-0 rounded-b-[24px] overflow-hidden"
+          viewport={{ once: true, margin: '-60px' }}
+          className="relative ticket-lift"
         >
+          {/* sheet header */}
+          <div className="bg-white border border-line border-b-0 rounded-t-card px-6 sm:px-8 py-5 flex items-center justify-between gap-4">
+            <p className="font-receipt text-[12.5px] font-bold tracking-[2px] text-ink whitespace-nowrap">
+              PRINTEASE · JOB SHEET
+            </p>
+            <p className="hidden sm:block font-receipt text-[12.5px] font-bold tracking-[1px] text-muted whitespace-nowrap">
+              6 STATIONS · ~2 MIN
+            </p>
+          </div>
+
+          {/* perforation strip with punched notches */}
+          <div className="ticket-strip [--notch-r:16px]">
+            <div aria-hidden className="ticket-notches absolute inset-0 bg-white border-x border-line" />
+            <div aria-hidden className="absolute inset-y-0 inset-x-10 perforation" />
+          </div>
+
+          {/* the stations */}
+          <motion.div
+            variants={staggerParent(0.06)}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-40px' }}
+            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-line/60 border border-line border-t-0 rounded-b-card overflow-hidden"
+          >
           {WALKTHROUGH_STEPS.map((step, i) => {
             const inked = i === 4
             return (
@@ -107,8 +116,9 @@ export function HowItWorks() {
               </motion.div>
             )
           })}
+          </motion.div>
         </motion.div>
-      </motion.div>
+      </div>
     </section>
   )
 }

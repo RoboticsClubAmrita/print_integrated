@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { hardwareService } from '../services/api';
-import { MapPin, Printer, Layers, Plus, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Layers, MapPin, Plus, Printer, Trash2 } from 'lucide-react';
+import { EmptyState, LedDot, PageHeader, Panel } from '../components/admin/ui';
+import { clsx } from 'clsx';
 
+/**
+ * Hardware — the machines themselves. Locations on the left rail; the
+ * selected hub's printers (machine rows) and stacks (physical pickup
+ * slots) on the bench. Every status is an LED, never a paragraph.
+ */
 const LocationsPage: React.FC = () => {
     const [locations, setLocations] = useState<any[]>([]);
     const [selectedLocation, setSelectedLocation] = useState<any>(null);
@@ -104,97 +111,188 @@ const LocationsPage: React.FC = () => {
         } catch (e) { console.error(e); }
     };
 
-    const inputClass = "w-full bg-bg-secondary border border-border rounded-lg px-4 py-2 text-sm text-text focus:outline-none focus:border-primary transition-colors duration-200";
-
     return (
-        <div className="min-h-screen p-6 lg:p-8">
-            <header className="mb-8 max-w-[1200px] mx-auto">
-                 <h1 className="text-[28px] font-bold tracking-[-0.02em] text-text">Hardware & Locations</h1>
-                 <p className="text-sm text-text-muted mt-1">Manage locations, printers, and stack availability.</p>
-            </header>
+        <>
+            <PageHeader
+                title="Hardware"
+                meta={`${locations.length} ${locations.length === 1 ? 'LOCATION' : 'LOCATIONS'} ON THE FLOOR`}
+            />
 
-            <main className="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Locations Column */}
-                <section className="card p-6">
-                    <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-text"><MapPin className="w-5 h-5 text-primary"/> Locations</h2>
+            <div className="grid grid-cols-12 items-start gap-5 lg:gap-6">
+                {/* ————— hubs ————— */}
+                <div className="col-span-12 lg:col-span-4">
+                    <Panel title="Locations" icon={MapPin} bodyClassName="p-3">
+                        {locations.length === 0 ? (
+                            <p className="px-2 py-3 text-[12.5px] leading-relaxed text-text-muted">
+                                No print hubs yet — add the first one below.
+                            </p>
+                        ) : (
+                            <ul className="space-y-2">
+                                {locations.map(loc => {
+                                    const active = selectedLocation?._id === loc._id;
+                                    return (
+                                        <li key={loc._id}>
+                                            <button
+                                                type="button"
+                                                onClick={() => selectLocation(loc)}
+                                                className={clsx(
+                                                    'well well-hover group flex w-full items-center gap-3 px-4 py-3 text-left',
+                                                    active && '!border-accent-secondary/35 !bg-accent-secondary/6',
+                                                )}
+                                            >
+                                                {active && <LedDot tone="amber" />}
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="block truncate text-[13.5px] font-bold text-text">{loc.name}</span>
+                                                    {loc.address && (
+                                                        <span className="block truncate text-[11.5px] text-text-muted">{loc.address}</span>
+                                                    )}
+                                                </span>
+                                                <span
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    title="Delete location"
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteLocation(loc._id); }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' || e.key === ' ') {
+                                                            e.preventDefault(); e.stopPropagation(); handleDeleteLocation(loc._id);
+                                                        }
+                                                    }}
+                                                    className="icon-btn icon-btn--danger opacity-0 transition-opacity duration-150 focus-visible:opacity-100 group-hover:opacity-100"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </span>
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        )}
 
-                    <div className="mb-6 space-y-3">
-                        <input value={newLocName} onChange={e => setNewLocName(e.target.value)} placeholder="Location Name" className={inputClass} />
-                        <input value={newLocAddress} onChange={e => setNewLocAddress(e.target.value)} placeholder="Address (optional)" className={inputClass} />
-                        <button onClick={handleCreateLocation} className="w-full press-btn text-white font-medium rounded-lg py-2.5 flex items-center justify-center gap-2 transition-colors duration-200 shadow-sm">
-                            <Plus size={18} /> Add Location
-                        </button>
-                    </div>
+                        <div className="mt-3 space-y-2.5 border-t border-white/6 px-1 pt-4 pb-1">
+                            <input value={newLocName} onChange={e => setNewLocName(e.target.value)} placeholder="Location name" className="ctl" />
+                            <input value={newLocAddress} onChange={e => setNewLocAddress(e.target.value)} placeholder="Address (optional)" className="ctl" />
+                            <button onClick={handleCreateLocation} disabled={!newLocName} className="press-btn w-full">
+                                <Plus size={15} strokeWidth={2.4} /> Add location
+                            </button>
+                        </div>
+                    </Panel>
+                </div>
 
-                    <ul className="space-y-3">
-                        {locations.map(loc => (
-                            <li key={loc._id} onClick={() => selectLocation(loc)} className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 ${selectedLocation?._id === loc._id ? 'bg-primary/5 border-primary/40' : 'bg-bg-secondary border-border hover:border-primary/20'}`}>
-                                <div className="flex justify-between items-center">
-                                    <div>
-                                        <h3 className="font-semibold text-text">{loc.name}</h3>
-                                        {loc.address && <p className="text-xs text-text-muted">{loc.address}</p>}
-                                    </div>
-                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteLocation(loc._id); }} className="text-accent p-2 hover:bg-accent/10 rounded-lg transition-colors duration-200"><Trash2 size={16}/></button>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                </section>
-
-                {/* Printers & Stacks */}
+                {/* ————— machines at the selected hub ————— */}
                 {selectedLocation ? (
-                    <section className="col-span-2 space-y-6">
-                        <div className="card p-6">
-                             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-text"><Printer className="w-5 h-5 text-primary"/> Printers at {selectedLocation.name}</h2>
+                    <div className="col-span-12 space-y-5 lg:col-span-8 lg:space-y-6">
+                        <Panel title={`Printers · ${selectedLocation.name}`} icon={Printer}>
+                            <div className="mb-4 flex gap-2.5">
+                                <input
+                                    value={newPrinterName}
+                                    onChange={e => setNewPrinterName(e.target.value)}
+                                    placeholder="Printer name, e.g. Printer-01"
+                                    className="ctl flex-1"
+                                />
+                                <button onClick={handleCreatePrinter} disabled={!newPrinterName} className="press-btn shrink-0">
+                                    <Plus size={15} strokeWidth={2.4} /> Add
+                                </button>
+                            </div>
 
-                             <div className="flex gap-3 mb-6">
-                                 <input value={newPrinterName} onChange={e => setNewPrinterName(e.target.value)} placeholder="Printer Name (e.g. Printer-01)" className={`flex-1 ${inputClass}`} />
-                                 <button onClick={handleCreatePrinter} className="press-btn px-4 font-medium rounded-lg transition-colors duration-200 text-white flex gap-2 items-center shadow-sm"><Plus size={18} /> Add</button>
-                             </div>
+                            {printers.length === 0 ? (
+                                <p className="py-2 text-[12.5px] text-text-muted">No printers at this hub yet.</p>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                                    {printers.map(p => {
+                                        const up = p.status === 'AVAILABLE';
+                                        return (
+                                            <div key={p._id} className="well group flex items-center gap-3 px-4 py-3">
+                                                <LedDot tone={up ? 'ok' : 'bad'} />
+                                                <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-text">{p.name}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleUpdatePrinter(p._id, up ? 'NOT_AVAILABLE' : 'AVAILABLE')}
+                                                    className={clsx('chip', up ? 'chip--ok' : 'chip--bad')}
+                                                    title="Toggle availability"
+                                                >
+                                                    <span className="dot" />
+                                                    {up ? 'AVAILABLE' : 'UNAVAILABLE'}
+                                                    <span className="opacity-60 -mr-0.5">⇄</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeletePrinter(p._id)}
+                                                    title="Delete printer"
+                                                    className="icon-btn icon-btn--danger opacity-0 transition-opacity duration-150 focus-visible:opacity-100 group-hover:opacity-100"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </Panel>
 
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {printers.map(p => (
-                                    <div key={p._id} className="bg-bg-secondary p-4 rounded-xl border border-border flex flex-col gap-3">
-                                        <div className="flex justify-between items-center">
-                                             <span className="font-semibold text-text">{p.name}</span>
-                                             <button onClick={() => handleDeletePrinter(p._id)} className="text-accent hover:text-accent/80"><Trash2 size={16}/></button>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-sm cursor-pointer" onClick={() => handleUpdatePrinter(p._id, p.status === 'AVAILABLE' ? 'NOT_AVAILABLE' : 'AVAILABLE')}>
-                                            {p.status === 'AVAILABLE' ? <span className="flex items-center gap-1 text-green-600 dark:text-green-400"><CheckCircle size={14}/> Available</span> : <span className="flex items-center gap-1 text-accent"><AlertCircle size={14}/> Not Available</span>}
-                                        </div>
-                                    </div>
-                                ))}
-                             </div>
-                        </div>
+                        <Panel title={`Stacks · ${selectedLocation.name}`} icon={Layers}>
+                            <div className="mb-4 flex gap-2.5">
+                                <input
+                                    value={newStackName}
+                                    onChange={e => setNewStackName(e.target.value)}
+                                    placeholder="Stack name, e.g. Slot-1"
+                                    className="ctl flex-1"
+                                />
+                                <button onClick={handleCreateStack} disabled={!newStackName} className="press-btn shrink-0">
+                                    <Plus size={15} strokeWidth={2.4} /> Add
+                                </button>
+                            </div>
 
-                        <div className="card p-6">
-                             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-text"><Layers className="w-5 h-5 text-primary"/> Stacks at {selectedLocation.name}</h2>
-
-                             <div className="flex gap-3 mb-6">
-                                 <input value={newStackName} onChange={e => setNewStackName(e.target.value)} placeholder="Stack Name/Number (e.g. Slot-1)" className={`flex-1 ${inputClass}`} />
-                                 <button onClick={handleCreateStack} className="press-btn px-4 font-medium rounded-lg transition-colors duration-200 text-white flex gap-2 items-center shadow-sm"><Plus size={18} /> Add</button>
-                             </div>
-
-                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                {stacks.map(s => (
-                                    <div key={s._id} className="bg-bg-secondary p-4 rounded-xl border border-border flex flex-col gap-3 text-center items-center">
-                                        <span className="font-semibold text-text">{s.name}</span>
-                                        <button onClick={() => handleUpdateStack(s._id, s.status === 'AVAILABLE' ? 'OCCUPIED' : 'AVAILABLE')} className={`px-3 py-1 text-xs rounded-md font-semibold ${s.status === 'AVAILABLE' ? 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400' : 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400'}`}>
-                                            {s.status === 'AVAILABLE' ? 'Available' : 'Occupied'}
-                                        </button>
-                                        <button onClick={() => handleDeleteStack(s._id)} className="text-accent hover:text-accent/80 mt-1"><Trash2 size={16}/></button>
-                                    </div>
-                                ))}
-                             </div>
-                        </div>
-                    </section>
+                            {stacks.length === 0 ? (
+                                <p className="py-2 text-[12.5px] text-text-muted">No pickup stacks at this hub yet.</p>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
+                                    {stacks.map(s => {
+                                        const free = s.status === 'AVAILABLE';
+                                        return (
+                                            <div key={s._id} className="group/slot relative">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleUpdateStack(s._id, free ? 'OCCUPIED' : 'AVAILABLE')}
+                                                    title="Toggle slot status"
+                                                    className={clsx(
+                                                        'well well-hover flex h-[86px] w-full flex-col items-center justify-center gap-1.5 px-2',
+                                                        !free && '!border-accent-secondary/30 !bg-accent-secondary/5',
+                                                    )}
+                                                >
+                                                    <span className="mono text-[12.5px] text-text">{s.name}</span>
+                                                    <span className="flex items-center gap-1.5">
+                                                        <LedDot tone={free ? 'ok' : 'amber'} />
+                                                        <span className={clsx('text-[10.5px] font-bold tracking-[0.5px]', free ? 'text-text-muted' : 'text-accent-secondary/90')}>
+                                                            {free ? 'FREE' : 'OCCUPIED'}
+                                                        </span>
+                                                    </span>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteStack(s._id)}
+                                                    title="Delete stack"
+                                                    className="icon-btn icon-btn--danger !absolute right-1 top-1 !size-6 opacity-0 transition-opacity duration-150 focus-visible:opacity-100 group-hover/slot:opacity-100"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </Panel>
+                    </div>
                 ) : (
-                    <div className="col-span-2 card flex items-center justify-center p-12 text-text-muted text-base border-dashed">
-                        Select a location to manage Printers and Stacks
+                    <div className="col-span-12 lg:col-span-8">
+                        <div className="panel">
+                            <EmptyState
+                                icon={Printer}
+                                title="Pick a location to service its machines"
+                                hint="Printers and pickup stacks live inside a hub — select one on the left, or add your first."
+                            />
+                        </div>
                     </div>
                 )}
-            </main>
-        </div>
+            </div>
+        </>
     );
 };
 

@@ -10,15 +10,17 @@ import { EASE } from '@/lib/motion'
  * PRINTED_PENDING_STACK collapses onto the "Ready" node (relabeled),
  * SCHEDULED onto the first; CANCELLED / FAILED show a message row instead.
  * Connector fills animate top-down as the simulation advances the status.
+ * `onDark` swaps the ink-on-paper palette for paper-on-ink so the same
+ * component stays legible on dark-panel surfaces (landing demo).
  */
-export function StatusTimeline({ status }: { status: OrderStatus }) {
+export function StatusTimeline({ status, onDark = false }: { status: OrderStatus; onDark?: boolean }) {
   const idx = timelineIndex(status)
 
   if (idx === -1) {
     return (
       <div className="flex items-center gap-3 py-1">
-        <XCircle size={22} className="text-muted shrink-0" />
-        <p className="text-[14.5px] font-bold text-ink">
+        <XCircle size={22} className={clsx('shrink-0', onDark ? 'text-white/55' : 'text-muted')} />
+        <p className={clsx('text-[14.5px] font-bold', onDark ? 'text-white' : 'text-ink')}>
           {status === 'CANCELLED' ? 'This order was cancelled.' : 'This order failed to print.'}
         </p>
       </div>
@@ -36,10 +38,13 @@ export function StatusTimeline({ status }: { status: OrderStatus }) {
             {i < TIMELINE_NODES.length - 1 && (
               <span
                 aria-hidden
-                className="absolute left-[10px] top-[26px] bottom-1 w-[2px] rounded bg-line overflow-hidden"
+                className={clsx(
+                  'absolute left-[10px] top-[26px] bottom-1 w-[2px] rounded overflow-hidden',
+                  onDark ? 'bg-white/15' : 'bg-line',
+                )}
               >
                 <motion.span
-                  className="absolute inset-0 bg-ink origin-top"
+                  className={clsx('absolute inset-0 origin-top', onDark ? 'bg-white' : 'bg-ink')}
                   initial={false}
                   animate={{ scaleY: i < idx ? 1 : 0 }}
                   transition={{ duration: 0.4, ease: EASE }}
@@ -49,9 +54,23 @@ export function StatusTimeline({ status }: { status: OrderStatus }) {
             <span
               className={clsx(
                 'relative grid place-items-center size-[22px] rounded-full border-2 shrink-0 transition-colors duration-340',
-                reached ? 'bg-ink border-ink text-white' : 'bg-chip border-line',
+                reached
+                  ? onDark
+                    ? 'bg-white border-white text-ink'
+                    : 'bg-ink border-ink text-white'
+                  : onDark
+                    ? 'bg-white/10 border-white/25'
+                    : 'bg-chip border-line',
               )}
-              style={current ? { boxShadow: '0 0 0 5px rgb(11 11 13 / 0.08)' } : undefined}
+              style={
+                current
+                  ? {
+                      boxShadow: onDark
+                        ? '0 0 0 5px rgb(255 255 255 / 0.14)'
+                        : '0 0 0 5px rgb(11 11 13 / 0.08)',
+                    }
+                  : undefined
+              }
             >
               {reached && <Check size={12} strokeWidth={3} />}
             </span>
@@ -60,16 +79,21 @@ export function StatusTimeline({ status }: { status: OrderStatus }) {
                 className={clsx(
                   'block text-[14.5px] transition-colors duration-340',
                   current
-                    ? 'font-extrabold text-ink'
+                    ? clsx('font-extrabold', onDark ? 'text-white' : 'text-ink')
                     : reached
-                      ? 'font-bold text-ink/80'
-                      : 'font-semibold text-muted',
+                      ? clsx('font-bold', onDark ? 'text-white/85' : 'text-ink/80')
+                      : clsx('font-semibold', onDark ? 'text-white/55' : 'text-muted'),
                 )}
               >
                 {label}
               </span>
               {current && (
-                <span className="block text-[11.5px] font-medium text-muted mt-0.5">
+                <span
+                  className={clsx(
+                    'block text-[11.5px] font-medium mt-0.5',
+                    onDark ? 'text-white/50' : 'text-muted',
+                  )}
+                >
                   Current status
                 </span>
               )}
