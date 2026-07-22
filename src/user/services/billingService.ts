@@ -1,8 +1,12 @@
-/** Payment flows: per-order, pay-all-due (sequential), and outstanding dues — real Razorpay + backend verify. */
+/**
+ * Payment flows: per-order, pay-all-due (sequential), and outstanding dues.
+ * Skips the Razorpay gateway entirely — the backend's mark-paid endpoints
+ * apply the exact same job/penalty/balance effects a verified payment
+ * would, so state stays in sync with the admin console either way.
+ */
 import type { Order } from '@/types'
 import { orderCost } from '@/lib/orders'
 import { outstandingDues, useAppStore } from '@/store/appStore'
-import { openCheckout } from '@/services/paymentService'
 import { paymentService as realPayments } from '../../services/api'
 
 function apiErrorMessage(err: unknown, fallback: string): string {
@@ -10,67 +14,42 @@ function apiErrorMessage(err: unknown, fallback: string): string {
   return e?.response?.data?.MESSAGE || e?.response?.data?.message || fallback
 }
 
-async function payForJob(order: Order): Promise<void> {
-  const user = useAppStore.getState().user
+async function markJobPaid(order: Order): Promise<void> {
   try {
-    const createRes = await realPayments.createOrder({ jobId: order.jobId })
-    const data = createRes?.DATA ?? createRes
-    const result = await openCheckout({
-      keyId: data.keyId,
-      orderId: data.orderId,
-      amountInPaise: data.amountInPaise,
-      currency: data.currency,
-      description: `Print job ${order.id}`,
-      prefill: { name: user?.name, email: user?.email, contact: user?.phone },
-    })
-    await realPayments.verify(result)
+    await realPayments.markPaid(order.jobId)
   } catch (err) {
-    throw new Error(apiErrorMessage(err, err instanceof Error ? err.message : 'Payment failed'))
+    throw new Error(apiErrorMessage(err, 'Payment failed'))
   }
 }
 
 /** Single-order payment (order detail "Pay ₹X"). */
 export async function payOrder(order: Order): Promise<void> {
-  await payForJob(order)
+  await markJobPaid(order)
   await useAppStore.getState().refresh()
 }
 
-/**
- * Billing "Pay Now": walks every payable (PENDING) order sequentially,
- * aborting the chain if a checkout is cancelled or fails.
- * Returns the total amount cleared.
- */
+/** Billing "Pay Now": marks every payable (PENDING) order paid. Returns the total amount cleared. */
 export async function payAllDue(): Promise<number> {
   const pending = useAppStore.getState().orders.filter((o) => o.status === 'PENDING')
   let cleared = 0
   for (const order of pending) {
-    await payForJob(order)
+    await markJobPaid(order)
     cleared += orderCost(order)
   }
   await useAppStore.getState().refresh()
   return cleared
 }
 
-/** Billing "Pay Dues": settles the storage-penalty ledger via a standalone Razorpay order. */
+/** Billing "Pay Dues": settles the storage-penalty ledger. */
 export async function payOutstandingDues(): Promise<number> {
   const state = useAppStore.getState()
   if (!state.user) throw new Error('Not signed in')
   const amount = outstandingDues(state.penalties)
   if (amount <= 0) return 0
   try {
-    const createRes = await realPayments.createPenaltyOrder(state.user.id)
-    const data = createRes?.DATA ?? createRes
-    const result = await openCheckout({
-      keyId: data.keyId,
-      orderId: data.orderId,
-      amountInPaise: data.amountInPaise,
-      currency: data.currency,
-      description: 'Outstanding dues',
-      prefill: { name: state.user.name, email: state.user.email, contact: state.user.phone },
-    })
-    await realPayments.verify(result)
+    await realPayments.markDuesPaid(state.user.id)
   } catch (err) {
-    throw new Error(apiErrorMessage(err, err instanceof Error ? err.message : 'Payment failed'))
+    throw new Error(apiErrorMessage(err, 'Payment failed'))
   }
   await useAppStore.getState().refresh()
   return amount
