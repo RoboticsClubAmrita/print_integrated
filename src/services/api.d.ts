@@ -89,6 +89,8 @@ export declare const paymentService: {
     createOrder: (orderData: any) => Promise<any>;
     createPenaltyOrder: (userId: string) => Promise<any>;
     verify: (paymentData: any) => Promise<any>;
+    markPaid: (jobId: string) => Promise<any>;
+    markDuesPaid: (userId: string) => Promise<any>;
     getById: (paymentId: string) => Promise<any>;
     getByJob: (jobId: string) => Promise<any>;
     getByUser: (userId: string, params?: any) => Promise<any>;

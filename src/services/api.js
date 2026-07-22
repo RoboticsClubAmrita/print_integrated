@@ -52,6 +52,8 @@ export const seedPricesAPI = `${API}/pricing/seed`;
 /* ================= PAYMENTS ================= */
 export const createOrderAPI = `${API}/payments/create-order`;
 export const verifyPaymentAPI = `${API}/payments/verify`;
+export const markPaidAPI = `${API}/payments/mark-paid`;
+export const markDuesPaidAPI = `${API}/payments/penalties/mark-paid`;
 export const getPaymentByIdAPI = (id) => `${API}/payments/${id}`;
 export const getPaymentByJobAPI = (jobId) => `${API}/payments/job/${jobId}`;
 export const getPaymentsByUserAPI = (userId) => `${API}/payments/user/${userId}`;
@@ -346,6 +348,14 @@ export const paymentService = {
     },
     verify: async (paymentData) => {
         const response = await api.post(verifyPaymentAPI, paymentData);
+        return response.data;
+    },
+    markPaid: async (jobId) => {
+        const response = await api.post(markPaidAPI, { jobId });
+        return response.data;
+    },
+    markDuesPaid: async (userId) => {
+        const response = await api.post(markDuesPaidAPI, { userId });
         return response.data;
     },
     getById: async (paymentId) => {
