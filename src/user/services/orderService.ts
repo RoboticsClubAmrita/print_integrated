@@ -2,7 +2,7 @@
 import type { Order, PrintSide } from '@/types'
 import { jobToOrder } from '@/lib/adapters'
 import { useAppStore } from '@/store/appStore'
-import { fileService as realFiles, jobService as realJobs } from '../../services/api'
+import { fileService as realFiles, jobService as realJobs, paymentService as realPayments } from '../../services/api'
 
 function apiErrorMessage(err: unknown, fallback: string): string {
   const e = err as { response?: { data?: { MESSAGE?: string; message?: string } } }
@@ -68,6 +68,12 @@ export async function placeOrder(input: NewOrderInput): Promise<Order> {
     throw new Error(apiErrorMessage(err, 'Could not place the order.'))
   }
   if (!jobId) throw new Error('Could not place the order.')
+
+  try {
+    await realPayments.markPaid(jobId)
+  } catch (_) {
+    // Ignore if already paid or non-critical error
+  }
 
   const jobRes = await realJobs.getById(jobId)
   const job = jobRes?.DATA ?? jobRes
