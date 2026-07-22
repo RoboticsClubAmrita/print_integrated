@@ -1,25 +1,16 @@
-/** Order lifecycle operations against the mock db. */
+/** Order lifecycle: real file upload + print-job create/cancel/collect against the Postgres-backed API. */
 import type { Order, PrintSide } from '@/types'
-import { delay } from '@/lib/delay'
-import { printCost } from '@/lib/pricing'
-import { getDb, saveDb, uid } from '@/services/db'
-import { requestOtp, verifyOtp } from '@/services/otpService'
-import { recordTransitionNotification } from '@/services/notify'
+import { jobToOrder } from '@/lib/adapters'
 import { useAppStore } from '@/store/appStore'
+import { fileService as realFiles, jobService as realJobs } from '../../services/api'
 
-const INVALID_OTP = 'Invalid code. Try again.'
-
-function nextRef(): number {
-  const db = getDb()
-  let max = 1050
-  for (const o of db.orders) {
-    const m = /^PE-(\d+)$/.exec(o.id)
-    if (m) max = Math.max(max, Number(m[1]))
-  }
-  return max + 1
+function apiErrorMessage(err: unknown, fallback: string): string {
+  const e = err as { response?: { data?: { MESSAGE?: string; message?: string } } }
+  return e?.response?.data?.MESSAGE || e?.response?.data?.message || fallback
 }
 
 export interface NewOrderInput {
+  file: File
   fileName: string
   fileSizeKb: number
   totalDocPages: number
@@ -32,102 +23,81 @@ export interface NewOrderInput {
 }
 
 export async function placeOrder(input: NewOrderInput): Promise<Order> {
-  await delay(500)
   const state = useAppStore.getState()
   const user = state.user
   if (!user) throw new Error('Not signed in')
 
-  const pages = input.selectedPages ? input.selectedPages.length : input.totalDocPages
-  const cost = printCost({ pages, copies: input.copies, side: input.side })
-  const order: Order = {
-    id: `PE-${nextRef()}`,
-    jobId: uid('job'),
-    userId: user.id,
-    fileName: input.fileName,
-    fileSizeKb: input.fileSizeKb,
-    pages,
-    totalDocPages: input.totalDocPages,
-    copies: input.copies,
-    side: input.side,
-    colorMode: 'BW',
-    pageType: 'A4',
-    selectedPages: input.selectedPages,
-    createdAt: new Date().toISOString(),
-    scheduleType: input.scheduledFor ? 'SCHEDULED' : 'NOW',
-    scheduledFor: input.scheduledFor,
-    status: 'PENDING',
-    costPerPage: input.side === 'SINGLE' ? 2 : 3,
-    printCost: cost,
-    balanceApplied: 0,
-    totalCost: cost,
-    locationId: input.locationId,
-    locationName: input.locationName,
-    stackName: null,
-    collectedStackName: null,
-    nextTransitionAt: null,
+  const formData = new FormData()
+  formData.append('file', input.file)
+  formData.append('userId', user.id)
+
+  let fileId: string | undefined
+  try {
+    const uploadRes = await realFiles.upload(formData)
+    fileId = (uploadRes?.DATA ?? uploadRes)?.fileId
+  } catch (err) {
+    throw new Error(apiErrorMessage(err, 'Could not upload the file.'))
   }
-  const db = getDb()
-  db.orders.unshift(order)
-  saveDb()
-  state.refresh()
+  if (!fileId) throw new Error('Could not upload the file.')
+
+  const payload: Record<string, unknown> = {
+    userId: user.id,
+    fileId,
+    printSide: input.side,
+    copies: input.copies,
+    // Server is the source of truth for the printed page count: the full
+    // selection length, or the whole document when printing every page.
+    totalPagesToPrint: input.selectedPages && input.selectedPages.length ? input.selectedPages.length : input.totalDocPages,
+    currency: 'INR',
+  }
+  if (input.locationId) payload.locationId = input.locationId
+  // The backend 400s on an explicit `selectedPages: null` (it must be a
+  // non-empty array when the field is present at all) — only send it when
+  // the user picked a subset of pages.
+  if (input.selectedPages && input.selectedPages.length) payload.selectedPages = input.selectedPages
+  if (input.scheduledFor) {
+    payload.scheduleType = 'SCHEDULED'
+    payload.scheduledFor = input.scheduledFor
+  }
+
+  let jobId: string | undefined
+  try {
+    const createRes = await realJobs.create(payload)
+    jobId = (createRes?.DATA ?? createRes)?.jobId
+  } catch (err) {
+    throw new Error(apiErrorMessage(err, 'Could not place the order.'))
+  }
+  if (!jobId) throw new Error('Could not place the order.')
+
+  const jobRes = await realJobs.getById(jobId)
+  const job = jobRes?.DATA ?? jobRes
+  const order = jobToOrder(job, state.locations)
+  await state.refresh()
   return order
 }
 
-/** After a successful payment: future-scheduled orders wait, others queue. */
-export function markPaid(jobId: string): void {
-  const db = getDb()
-  const order = db.orders.find((o) => o.jobId === jobId)
-  if (!order) return
-  if (
-    order.scheduleType === 'SCHEDULED' &&
-    order.scheduledFor &&
-    Date.parse(order.scheduledFor) > Date.now()
-  ) {
-    order.status = 'SCHEDULED'
-    order.nextTransitionAt = null
-  } else {
-    order.status = 'QUEUED'
-    order.nextTransitionAt = new Date(Date.now() + 20_000).toISOString()
-  }
-  saveDb()
-  useAppStore.getState().refresh()
+export async function cancelOrder(jobId: string, reason?: string): Promise<void> {
+  await realJobs.cancel({ jobId, reason })
+  await useAppStore.getState().refresh()
 }
 
-export async function cancelOrder(jobId: string): Promise<void> {
-  await delay()
-  const db = getDb()
-  const order = db.orders.find((o) => o.jobId === jobId)
-  if (!order) return
-  order.status = 'CANCELLED'
-  order.nextTransitionAt = null
-  saveDb()
-  useAppStore.getState().refresh()
-}
-
-/** Emails (mock) a collection OTP; returns the target email + demo code. */
-export async function requestCollection(order: Order): Promise<{ email: string; code: string }> {
-  await delay()
-  const email = useAppStore.getState().user?.email ?? 'your email'
-  return { email, code: requestOtp('collect', order.jobId) }
+/** Requests a collection OTP — the backend emails it to the account's real address. */
+export async function requestCollection(order: Order): Promise<{ email: string }> {
+  const res = await realJobs.collectRequest({ jobId: order.jobId })
+  const data = res?.DATA ?? res
+  return { email: data?.email ?? useAppStore.getState().user?.email ?? 'your email' }
 }
 
 export async function confirmCollection(
   jobId: string,
   otp: string,
 ): Promise<{ error: string | null; stackName?: string }> {
-  await delay()
-  if (!verifyOtp('collect', jobId, otp)) return { error: INVALID_OTP }
-  const db = getDb()
-  const order = db.orders.find((o) => o.jobId === jobId)
-  if (!order) return { error: 'Order not found.' }
-  const from = order.status
-  const stackName = order.stackName ?? 'A'
-  order.collectedStackName = stackName
-  order.status = 'COLLECTED'
-  order.nextTransitionAt = null
-  saveDb()
-  // Bell entry, no toast — the success overlay covers the moment.
-  recordTransitionNotification(order, from, 'COLLECTED', { withToast: false })
-  useAppStore.getState().refresh()
-  return { error: null, stackName }
+  try {
+    const res = await realJobs.collectVerify({ jobId, otp })
+    const data = res?.DATA ?? res
+    await useAppStore.getState().refresh()
+    return { error: null, stackName: data?.stackName ?? undefined }
+  } catch (err) {
+    return { error: apiErrorMessage(err, 'Invalid code. Try again.') }
+  }
 }

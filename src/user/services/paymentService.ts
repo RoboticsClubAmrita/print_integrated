@@ -1,30 +1,59 @@
 /**
- * Mock Razorpay. `checkout()` resolves/rejects when the user completes or
- * abandons the branded checkout modal (MockRazorpayModal), which watches
- * `uiStore.checkout`. Deterministic — failure only via the explicit
- * "simulate a failed payment" affordance.
+ * Real Razorpay Checkout, driven by the backend's `/payments/create-order`
+ * (or `/payments/penalties/create-order`) response. The Checkout script tag
+ * is loaded globally in `index.html`.
  */
-import { useUiStore } from '@/store/uiStore'
 
-export interface CheckoutOptions {
-  title: string
-  description: string
-  amount: number
-  step?: { current: number; total: number }
+interface RazorpayResponse {
+  razorpay_order_id: string
+  razorpay_payment_id: string
+  razorpay_signature: string
 }
 
-export function checkout(options: CheckoutOptions): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    useUiStore.getState().setCheckout({
-      ...options,
-      resolve: () => {
-        useUiStore.getState().setCheckout(null)
-        resolve()
-      },
-      reject: (err: Error) => {
-        useUiStore.getState().setCheckout(null)
-        reject(err)
+interface RazorpayInstance {
+  open: () => void
+  on: (event: 'payment.failed', handler: (response: { error?: { description?: string } }) => void) => void
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => RazorpayInstance
+  }
+}
+
+export interface OpenCheckoutOptions {
+  keyId: string
+  orderId: string
+  amountInPaise: number
+  currency: string
+  description: string
+  prefill?: { name?: string; email?: string; contact?: string }
+}
+
+/** Opens the Razorpay Checkout modal; resolves with the payment fields `/payments/verify` needs. */
+export function openCheckout(options: OpenCheckoutOptions): Promise<RazorpayResponse> {
+  return new Promise((resolve, reject) => {
+    if (!window.Razorpay) {
+      reject(new Error('Payment gateway failed to load. Check your connection and try again.'))
+      return
+    }
+    const rzp = new window.Razorpay({
+      key: options.keyId,
+      order_id: options.orderId,
+      amount: options.amountInPaise,
+      currency: options.currency,
+      name: 'PrintEase',
+      description: options.description,
+      prefill: options.prefill,
+      theme: { color: '#0B0B0D' },
+      handler: (response: RazorpayResponse) => resolve(response),
+      modal: {
+        ondismiss: () => reject(new Error('Payment cancelled.')),
       },
     })
+    rzp.on('payment.failed', (response) => {
+      reject(new Error(response.error?.description ?? 'Payment failed.'))
+    })
+    rzp.open()
   })
 }

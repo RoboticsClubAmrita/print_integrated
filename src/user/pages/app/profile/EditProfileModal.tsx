@@ -4,7 +4,6 @@ import { Modal } from '@/components/ui/Modal'
 import { Field } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { OtpInput } from '@/components/ui/OtpInput'
-import { OtpDemoHint } from '@/components/app/OtpDemoHint'
 import { filterPhoneInput, isAmritaEmail, isValidPhone, MSG } from '@/lib/validators'
 import { requestEmailChange, updateProfile, verifyEmailChange } from '@/services/authService'
 import { showSuccess } from '@/store/uiStore'
@@ -33,7 +32,6 @@ export function EditProfileModal({
   const [busy, setBusy] = useState(false)
   const [otp, setOtp] = useState('')
   const [otpError, setOtpError] = useState<string | null>(null)
-  const [demoCode, setDemoCode] = useState('')
 
   const reset = () => {
     setStep('form')
@@ -76,7 +74,6 @@ export function EditProfileModal({
         setError(result.error)
         return
       }
-      setDemoCode(result.code ?? '')
       setStep('otp')
       return
     }
@@ -87,7 +84,7 @@ export function EditProfileModal({
   const verify = async (code: string) => {
     setBusy(true)
     setOtpError(null)
-    const err = await verifyEmailChange(code, email)
+    const err = await verifyEmailChange(code)
     if (err) {
       setBusy(false)
       setOtpError(err)
@@ -132,12 +129,10 @@ export function EditProfileModal({
             Enter the 4-digit code sent to {email}.
           </p>
           <OtpInput value={otp} onChange={setOtp} onComplete={verify} disabled={busy} error={!!otpError} />
-          {otpError ? (
+          {otpError && (
             <p role="alert" className="text-[12.5px] font-semibold text-danger">
               {otpError}
             </p>
-          ) : (
-            demoCode && <OtpDemoHint code={demoCode} />
           )}
           <Button fullWidth loading={busy} disabled={otp.length < 4} onClick={() => verify(otp)}>
             Verify &amp; Save

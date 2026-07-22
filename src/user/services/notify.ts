@@ -1,33 +1,16 @@
 /**
- * Records a status-transition notification (bell list entry + toast),
- * mirroring AppState._notifyStatusChanges in the Flutter app.
+ * Status-transition toast. The backend has no notifications table, so
+ * unlike the old mock this no longer persists a bell-list entry — it only
+ * surfaces a toast for a transition the current tab just observed (e.g.
+ * right after `confirmCollection`).
  */
 import type { Order, OrderStatus } from '@/types'
 import { transitionNotification } from '@/lib/orders'
-import { getDb, saveDb, uid } from '@/services/db'
-import { useAppStore } from '@/store/appStore'
 import { toast } from '@/store/uiStore'
 
-export function recordTransitionNotification(
-  order: Order,
-  from: OrderStatus,
-  to: OrderStatus,
-  opts: { withToast?: boolean } = {},
-): void {
+export function recordTransitionNotification(order: Order, from: OrderStatus, to: OrderStatus): void {
   const copy = transitionNotification(order.fileName, from, to)
   if (!copy) return
-  const db = getDb()
-  db.notifications.unshift({
-    id: uid('n'),
-    userId: order.userId,
-    title: copy.title,
-    body: copy.body,
-    time: new Date().toISOString(),
-  })
-  saveDb()
-  const session = useAppStore.getState().session
-  if (opts.withToast !== false && session?.userId === order.userId) {
-    const tone = to === 'COMPLETED' || to === 'COLLECTED' ? 'success' : 'info'
-    toast(copy.title, copy.body, tone)
-  }
+  const tone = to === 'COMPLETED' || to === 'COLLECTED' ? 'success' : 'info'
+  toast(copy.title, copy.body, tone)
 }

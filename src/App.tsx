@@ -8,7 +8,6 @@ import { AppShell } from '@/app/AppShell';
 import { Spinner } from '@/components/ui/Spinner';
 import { ToastHost } from '@/components/ui/ToastHost';
 import { SuccessOverlay } from '@/components/app/SuccessOverlay';
-import { MockRazorpayModal } from '@/components/app/MockRazorpayModal';
 import { ModeTransitionOverlay } from '@/components/app/ModeTransitionOverlay';
 
 const LandingPage = lazy(() => import('@/pages/landing/LandingPage'));
@@ -142,7 +141,6 @@ export default function App() {
                 </Suspense>
                 <ToastHost />
                 <SuccessOverlay />
-                <MockRazorpayModal />
                 <ModeTransitionOverlay />
             </BrowserRouter>
         </MotionConfig>

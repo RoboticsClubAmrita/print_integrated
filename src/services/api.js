@@ -6,15 +6,24 @@ const API = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VI
 
 /* ================= AUTH ================= */
 export const loginAPI = `${API}/auth/login`;
+export const refreshAPI = `${API}/auth/refresh`;
 export const logoutAPI = `${API}/auth/logout`;
+export const logoutAllAPI = `${API}/auth/logout-all`;
+export const registerStartAPI = `${API}/auth/register/start`;
+export const registerVerifyAPI = `${API}/auth/register/verify`;
+export const registerResendAPI = `${API}/auth/register/resend`;
 export const forgotPasswordAPI = `${API}/auth/forgot-password`;
 export const resetPasswordAPI = `${API}/auth/reset-password`;
+export const verifyEmailAPI = `${API}/auth/verify-email`;
+export const resendVerificationAPI = `${API}/auth/resend-verification`;
 
 /* ================= USERS ================= */
 export const addUserAPI = `${API}/users/add`;
 export const getAllUsersAPI = `${API}/users/all`;
 export const getUserByIdAPI = (id) => `${API}/users/${id}`;
 export const editUserAPI = `${API}/users/edit`;
+export const changeEmailRequestAPI = `${API}/users/change-email-request`;
+export const changeEmailVerifyAPI = `${API}/users/change-email-verify`;
 export const deleteUserAPI = `${API}/users/delete`;
 export const reactivateUserAPI = `${API}/users/reactivate`;
 export const hardDeleteUserAPI = `${API}/users/hard-delete`;
@@ -27,6 +36,8 @@ export const getJobsByUserAPI = (userId) => `${API}/jobs/user/${userId}`;
 export const editJobAPI = `${API}/jobs/edit`;
 export const cancelJobAPI = `${API}/jobs/cancel`;
 export const deleteJobAPI = `${API}/jobs/delete`;
+export const collectRequestAPI = `${API}/jobs/collect/request`;
+export const collectVerifyAPI = `${API}/jobs/collect/verify`;
 
 /* ================= PRICING ================= */
 export const createPriceAPI = `${API}/pricing/create`;
@@ -62,12 +73,13 @@ export const createPenaltyOrderAPI = `${API}/payments/penalties/create-order`;
 
 
 const api = axios.create({
+    withCredentials: true, // send/receive the HttpOnly refresh-token cookie
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// ── Axios interceptor: attach JWT token to every request ──
+// ── Axios interceptor: attach the access token to every request ──
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -76,26 +88,105 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+// ── Single-flight refresh: a 401 triggers one /auth/refresh call even if
+// several requests fail concurrently; every caller awaits the same promise. ──
+let refreshPromise = null;
+
+function clearSession() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.dispatchEvent(new Event('auth:sessionExpired'));
+}
+
+async function refreshAccessToken() {
+    if (!refreshPromise) {
+        refreshPromise = api
+            .post(refreshAPI)
+            .then((res) => {
+                const token = res.data?.accessToken || res.data?.token;
+                if (!token) throw new Error('No access token in refresh response');
+                localStorage.setItem('token', token);
+                return token;
+            })
+            .catch((err) => {
+                clearSession();
+                throw err;
+            })
+            .finally(() => {
+                refreshPromise = null;
+            });
+    }
+    return refreshPromise;
+}
+
+// ── Response interceptor: transparent 401 → refresh → retry-once ──
+api.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config;
+        const status = error.response?.status;
+        const url = originalRequest?.url || '';
+        const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/refresh');
+
+        if (status === 401 && !isAuthRoute && originalRequest && !originalRequest._retry) {
+            originalRequest._retry = true;
+            try {
+                await refreshAccessToken();
+                return api(originalRequest);
+            } catch {
+                // fall through — refresh failed, reject with the original error
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 // ── Auth Service ──
 export const authService = {
     login: async (credentials) => {
         const response = await api.post(loginAPI, credentials);
         const data = response.data;
-        if (data?.token) {
-            localStorage.setItem('token', data.token);
+        const token = data?.accessToken || data?.token;
+        if (token) {
+            localStorage.setItem('token', token);
         }
         if (data?.user) {
             localStorage.setItem('user', JSON.stringify(data.user));
-        } else if (data?._id || data?.userId || data?.userId) {
-            localStorage.setItem('user', JSON.stringify(data));
         }
         return data;
     },
+    refresh: async () => refreshAccessToken(),
     logout: async () => {
-        const response = await api.post(logoutAPI);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        return response.data;
+        try {
+            const response = await api.post(logoutAPI);
+            return response.data;
+        } finally {
+            clearSession();
+        }
+    },
+    logoutAll: async () => {
+        try {
+            const response = await api.post(logoutAllAPI);
+            return response.data;
+        } finally {
+            clearSession();
+        }
+    },
+    registerStart: async ({ collegeId, name, phone, password }) => {
+        const response = await api.post(registerStartAPI, { collegeId, name, phone, password });
+        return response.data?.DATA ?? response.data;
+    },
+    registerVerify: async ({ collegeId, email, otp }) => {
+        const response = await api.post(registerVerifyAPI, { collegeId, email, otp });
+        const data = response.data;
+        const token = data?.accessToken || data?.token;
+        if (token) localStorage.setItem('token', token);
+        if (data?.user) localStorage.setItem('user', JSON.stringify(data.user));
+        return data;
+    },
+    registerResend: async ({ collegeId, email }) => {
+        const response = await api.post(registerResendAPI, { collegeId, email });
+        return response.data?.DATA ?? response.data;
     },
     forgotPassword: async (email) => {
         const response = await api.post(forgotPasswordAPI, { email });
@@ -107,6 +198,14 @@ export const authService = {
             newPassword: password,
             confirmPassword: confirmPassword,
         });
+        return response.data;
+    },
+    verifyEmail: async ({ email, otp }) => {
+        const response = await api.post(verifyEmailAPI, { email, otp });
+        return response.data;
+    },
+    resendVerification: async (email) => {
+        const response = await api.post(resendVerificationAPI, { email });
         return response.data;
     },
 };
@@ -127,6 +226,14 @@ export const userService = {
     },
     edit: async (userData) => {
         const response = await api.put(editUserAPI, userData);
+        return response.data;
+    },
+    requestEmailChange: async ({ userId, newEmail }) => {
+        const response = await api.post(changeEmailRequestAPI, { userId, newEmail });
+        return response.data;
+    },
+    verifyEmailChange: async ({ userId, otp }) => {
+        const response = await api.post(changeEmailVerifyAPI, { userId, otp });
         return response.data;
     },
     delete: async (userId) => {
@@ -183,6 +290,14 @@ export const jobService = {
     },
     delete: async (jobData) => {
         const response = await api.delete(deleteJobAPI, { data: jobData });
+        return response.data;
+    },
+    collectRequest: async ({ jobId }) => {
+        const response = await api.post(collectRequestAPI, { jobId });
+        return response.data;
+    },
+    collectVerify: async ({ jobId, otp }) => {
+        const response = await api.post(collectVerifyAPI, { jobId, otp });
         return response.data;
     },
 };

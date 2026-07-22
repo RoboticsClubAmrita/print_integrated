@@ -1,28 +1,18 @@
 /**
- * Global app state (session, user, orders, penalties, notifications).
- * Hydrates synchronously from localStorage at module import so route guards
- * never flash, and is callable from the simulation engine outside React.
- *
- * `user` is the REAL authenticated identity (from `localStorage.user`,
- * written by the real backend login — see `src/services/api.js`), not a
- * mock-db lookup: the admin console and this app share one login. Orders/
- * penalties/notifications stay sourced from the local mock db keyed by that
- * same real user id — legitimately empty for a fresh account, populated by
- * this app's own (still-mocked) New Order flow from then on.
+ * Global app state (session, user, orders, penalties, locations).
+ * `session`/`user` hydrate synchronously from `localStorage.token`/`.user`
+ * (written by the real backend login — see `src/services/api.js`) so route
+ * guards never flash. Orders/penalties/locations are fetched from the real
+ * Postgres-backed API (`refresh()`/`loadLocations()`), called from
+ * `AppShell` on mount/user-change and after every mutation.
  */
 import { create } from 'zustand'
-import type {
-  AppNotification,
-  Order,
-  Penalty,
-  PrintLocation,
-  Session,
-  User,
-} from '@/types'
-import { getDb, loadPrefs, savePrefs } from '@/services/db'
-import { LOCATIONS } from '@/services/seed'
+import type { AppNotification, Order, Penalty, PrintLocation, Session, User } from '@/types'
+import { loadPrefs, savePrefs } from '@/services/db'
+import { jobToOrder, locationToPrintLocation, penaltyToPenalty } from '@/lib/adapters'
 import { isPaid, orderCost } from '@/lib/orders'
 import { isToday } from '@/lib/format'
+import { jobService, penaltyService, hardwareService } from '../../services/api'
 
 interface AppState {
   session: Session | null
@@ -35,9 +25,13 @@ interface AppState {
   walkthroughSeen: boolean
   lastSeenNotificationsAt: string | null
 
-  /** Re-pull the current user's slices from the mock db. */
-  refresh: () => void
+  /** Re-pull the current user's orders/penalties from the real backend. */
+  refresh: () => Promise<void>
+  /** Fetch the live print-hub list (rarely changes; called once per session). */
+  loadLocations: () => Promise<void>
   setSession: (session: Session | null) => void
+  /** Overwrite the in-memory user (e.g. after a profile edit re-fetch). */
+  setUser: (user: User) => void
   setSelectedLocation: (id: string | null) => void
   markWalkthroughSeen: () => void
   markNotificationsSeen: () => void
@@ -67,22 +61,13 @@ function realUser(): User | null {
   }
 }
 
-function orderSlices(userId: string) {
-  const db = getDb()
-  const orders = db.orders
-    .filter((o) => o.userId === userId)
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
-  const penalties = db.penalties.filter((p) => p.userId === userId)
-  const notifications = db.notifications
-    .filter((n) => n.userId === userId)
-    .sort((a, b) => (a.time < b.time ? 1 : -1))
-  return { orders, penalties, notifications }
-}
-
 function hydrate() {
   const prefs = loadPrefs()
   const base = {
-    locations: LOCATIONS,
+    orders: [] as Order[],
+    penalties: [] as Penalty[],
+    notifications: [] as AppNotification[],
+    locations: [] as PrintLocation[],
     selectedLocationId: null as string | null,
     walkthroughSeen: prefs.walkthroughSeen,
     lastSeenNotificationsAt: prefs.lastSeenNotificationsAt,
@@ -90,7 +75,7 @@ function hydrate() {
   const token = localStorage.getItem('token')
   const user = token ? realUser() : null
   if (!token || !user) {
-    return { ...base, session: null, user: null, orders: [], penalties: [], notifications: [] }
+    return { ...base, session: null, user: null }
   }
   const session: Session = {
     userId: user.id,
@@ -98,16 +83,41 @@ function hydrate() {
     rememberMe: true,
     createdAt: new Date().toISOString(),
   }
-  return { ...base, session, user, ...orderSlices(user.id) }
+  return { ...base, session, user }
 }
 
 export const useAppStore = create<AppState>()((set, get) => ({
   ...hydrate(),
 
-  refresh: () => {
+  refresh: async () => {
     const user = get().user
     if (!user) return
-    set({ user, ...orderSlices(user.id) })
+    const locations = get().locations
+    const [jobsRes, penaltiesRes] = await Promise.all([
+      jobService.getByUser(user.id, { limit: 100 }),
+      penaltyService.getForUser(user.id),
+    ])
+    const jobsData = jobsRes?.DATA ?? jobsRes
+    const penaltiesData = penaltiesRes?.DATA ?? penaltiesRes
+    const orders = (jobsData?.jobs ?? [])
+      .map((j: Parameters<typeof jobToOrder>[0]) => jobToOrder(j, locations))
+      .sort((a: Order, b: Order) => (a.createdAt < b.createdAt ? 1 : -1))
+    const penalties = (penaltiesData?.penalties ?? []).map(penaltyToPenalty)
+    // Current user may have changed (or logged out) while the requests were in flight.
+    if (get().user?.id !== user.id) return
+    set({ orders, penalties })
+  },
+
+  loadLocations: async () => {
+    const res = await hardwareService.getLocations()
+    const data = res?.DATA ?? res
+    const locations = (Array.isArray(data) ? data : []).map(locationToPrintLocation)
+    set({ locations })
+    // Re-resolve locationName on already-loaded orders now that locations are known.
+    const orders = get().orders
+    if (orders.length) {
+      set({ orders: orders.map((o) => ({ ...o, locationName: locations.find((l) => l.id === o.locationId)?.name ?? o.locationName })) })
+    }
   },
 
   setSession: (session) => {
@@ -116,12 +126,10 @@ export const useAppStore = create<AppState>()((set, get) => ({
       return
     }
     const user = realUser()
-    set({
-      session,
-      user,
-      ...(user ? orderSlices(user.id) : { orders: [], penalties: [], notifications: [] }),
-    })
+    set({ session, user, orders: [], penalties: [] })
   },
+
+  setUser: (user) => set({ user }),
 
   setSelectedLocation: (id) => set({ selectedLocationId: id }),
 
@@ -146,6 +154,13 @@ export const useAppStore = create<AppState>()((set, get) => ({
       selectedLocationId: null,
     }),
 }))
+
+// A refresh-token failure (see src/services/api.js) clears localStorage and
+// fires this event from outside React — drop the in-memory session too so
+// route guards redirect to /login instead of showing stale data.
+window.addEventListener('auth:sessionExpired', () => {
+  useAppStore.getState().clear()
+})
 
 // ————— Derived helpers (pure — call with store slices) —————
 

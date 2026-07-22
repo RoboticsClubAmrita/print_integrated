@@ -3,7 +3,6 @@ import { Truck } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { OtpInput } from '@/components/ui/OtpInput'
-import { OtpDemoHint } from '@/components/app/OtpDemoHint'
 import type { Order } from '@/types'
 import { confirmCollection, requestCollection } from '@/services/orderService'
 import { showSuccess } from '@/store/uiStore'
@@ -25,7 +24,6 @@ export function CollectOtpModal({
   onCollected: (stackName: string) => void
 }) {
   const [code, setCode] = useState('')
-  const [demoCode, setDemoCode] = useState('')
   const [email, setEmail] = useState('your email')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -36,7 +34,6 @@ export function CollectOtpModal({
     setError(null)
     requestCollection(order).then((r) => {
       setEmail(r.email)
-      setDemoCode(r.code)
     })
   }, [open, order])
 
@@ -69,15 +66,11 @@ export function CollectOtpModal({
 
       <div className="mt-6">
         <OtpInput value={code} onChange={setCode} onComplete={verify} disabled={busy} error={!!error} />
-        {error ? (
+        {error && (
           <p role="alert" className="mt-3 text-center text-[12.5px] font-semibold text-danger">
             {error}
           </p>
-        ) : demoCode ? (
-          <div className="mt-3 flex justify-center">
-            <OtpDemoHint code={demoCode} />
-          </div>
-        ) : null}
+        )}
       </div>
 
       <Button fullWidth className="mt-6" loading={busy} disabled={code.length < 4} onClick={() => verify(code)}>

@@ -2,14 +2,13 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { Mail, Lock, ArrowRight, Check, Sparkles } from 'lucide-react'
+import { Mail, Lock, ArrowRight, Check } from 'lucide-react'
 import { clsx } from 'clsx'
 import { AuthLayout } from '@/pages/auth/AuthLayout'
 import { Field } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { login } from '@/services/authService'
 import { loadPrefs } from '@/services/db'
-import { DEMO_EMAIL, DEMO_PASSWORD } from '@/services/seed'
 import { MSG } from '@/lib/validators'
 import { toast } from '@/store/uiStore'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
@@ -37,12 +36,6 @@ export default function LoginPage() {
     }
     const from = (location.state as { from?: { pathname: string } } | null)?.from
     navigate(from?.pathname ?? '/app', { replace: true })
-  }
-
-  const fillDemo = () => {
-    setEmail(DEMO_EMAIL)
-    setPassword(DEMO_PASSWORD)
-    setError(null)
   }
 
   return (
@@ -134,25 +127,6 @@ export default function LoginPage() {
             Sign In
           </Button>
         </motion.div>
-
-        {/* Demo autofill */}
-        <motion.button
-          variants={fadeSlideChild}
-          type="button"
-          onClick={fillDemo}
-          className="press-soft mt-3 flex w-full items-center gap-3 rounded-[16px] border border-dashed border-line bg-chip/50 px-4 py-2.5 text-left transition-colors hover:border-ink/25 hover:bg-chip"
-        >
-          <span className="grid size-9 shrink-0 place-items-center rounded-[12px] bg-ink text-white">
-            <Sparkles size={16} strokeWidth={2.2} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[12.5px] font-bold text-ink">Try the demo account</span>
-            <span className="block truncate text-[11.5px] font-medium text-muted">
-              {DEMO_EMAIL} · tap to autofill
-            </span>
-          </span>
-          <ArrowRight size={16} className="shrink-0 text-muted" />
-        </motion.button>
 
         {/* Divider */}
         <motion.div variants={fadeSlideChild} className="mt-4 flex items-center gap-3">
