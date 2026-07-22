@@ -4,8 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { AuthLayout } from '@/pages/auth/AuthLayout'
 import { Button } from '@/components/ui/Button'
 import { OtpInput } from '@/components/ui/OtpInput'
-import { OtpDemoHint } from '@/components/app/OtpDemoHint'
-import { login, resendVerification, verifyEmail } from '@/services/authService'
+import { resendVerification, verifyEmail } from '@/services/authService'
 import { showSuccess, toast } from '@/store/uiStore'
 import { useCountdown } from '@/hooks/useCountdown'
 import { formatCountdown } from '@/lib/format'
@@ -13,9 +12,8 @@ import { MSG } from '@/lib/validators'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 interface RegisterState {
-  email: string
-  password: string
-  code?: string
+  collegeId: string
+  email?: string
 }
 
 export default function VerifyEmailPage() {
@@ -25,37 +23,37 @@ export default function VerifyEmailPage() {
   const state = location.state as RegisterState | null
 
   useEffect(() => {
-    if (!state?.email) navigate('/register', { replace: true })
+    if (!state?.collegeId) navigate('/register', { replace: true })
   }, [state, navigate])
 
   const [code, setCode] = useState('')
-  const [demoCode, setDemoCode] = useState(state?.code ?? '')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const { remaining, done, restart } = useCountdown(30)
 
-  if (!state?.email) return null
+  if (!state?.collegeId) return null
 
   const verify = async (otp: string) => {
     setBusy(true)
     setError(null)
-    const err = await verifyEmail(state.email, otp)
+    const err = await verifyEmail(state.collegeId, otp)
+    setBusy(false)
     if (err) {
-      setBusy(false)
       setError(err)
       return
     }
     showSuccess({ title: 'Email verified', subtitle: 'Welcome to PrintEase!', icon: 'mail' })
-    const loginErr = await login(state.email, state.password, true)
-    setBusy(false)
-    if (!loginErr) navigate('/app', { replace: true })
+    navigate('/app', { replace: true })
   }
 
   const resend = async () => {
-    const r = await resendVerification(state.email)
-    setDemoCode(r.code)
+    const err = await resendVerification(state.collegeId)
     restart()
-    toast(MSG.otpResent)
+    if (err) {
+      toast(err, undefined, 'warning')
+    } else {
+      toast(MSG.otpResent)
+    }
   }
 
   return (
@@ -73,23 +71,19 @@ export default function VerifyEmailPage() {
           Verify your email
         </h1>
         <p className="mt-2 text-[13.5px] font-medium text-muted leading-relaxed">
-          Enter the 4-digit code sent to {state.email}.
+          Enter the 4-digit code sent to {state.email ?? 'your Amrita email'}.
           <br />
-          Wrong address? Go back to change it.
+          Wrong roll number? Go back to change it.
         </p>
       </div>
 
       <div className="mt-8">
         <OtpInput value={code} onChange={setCode} onComplete={verify} disabled={busy} error={!!error} />
-        {error ? (
+        {error && (
           <p role="alert" className="mt-3 text-center text-[12.5px] font-semibold text-danger">
             {error}
           </p>
-        ) : demoCode ? (
-          <div className="mt-3 flex justify-center">
-            <OtpDemoHint code={demoCode} />
-          </div>
-        ) : null}
+        )}
       </div>
 
       <Button fullWidth className="mt-6" loading={busy} disabled={code.length < 4} onClick={() => verify(code)}>

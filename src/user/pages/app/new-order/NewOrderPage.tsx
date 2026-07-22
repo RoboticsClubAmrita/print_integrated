@@ -101,6 +101,7 @@ export default function NewOrderPage() {
     setPlacing(true)
     try {
       const order = await placeOrder({
+        file: stored.file,
         fileName: stored.file.name,
         fileSizeKb: stored.sizeKb,
         totalDocPages: totalPages,

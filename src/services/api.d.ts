@@ -39,18 +39,28 @@ export declare const webhookAPI: string;
 
 
 export declare const authService: {
-    login: (credentials: any) => Promise<any>;
-    signup: (userData: any) => Promise<any>;
+    login: (credentials: { email: string; password: string }) => Promise<any>;
+    refresh: () => Promise<any>;
     logout: () => Promise<any>;
+    logoutAll: () => Promise<any>;
+    registerStart: (data: { collegeId: string; name: string; phone: string; password: string }) => Promise<any>;
+    registerVerify: (data: { collegeId?: string; email?: string; otp: string }) => Promise<any>;
+    registerResend: (data: { collegeId?: string; email?: string }) => Promise<any>;
     forgotPassword: (email: string) => Promise<any>;
     resetPassword: ({ token, password, confirmPassword }: any) => Promise<any>;
+    verifyEmail: (data: { email: string; otp: string }) => Promise<any>;
+    resendVerification: (email: string) => Promise<any>;
 };
 export declare const userService: {
     add: (userData: any) => Promise<any>;
     getAll: () => Promise<any>;
     getById: (userId: string) => Promise<any>;
     edit: (userData: any) => Promise<any>;
+    requestEmailChange: (data: { userId: string; newEmail: string }) => Promise<any>;
+    verifyEmailChange: (data: { userId: string; otp: string }) => Promise<any>;
     delete: (userId: string) => Promise<any>;
+    reactivate: (userId: string) => Promise<any>;
+    hardDelete: (userId: string) => Promise<any>;
 };
 export declare const fileService: {
     upload: (formData: any) => Promise<any>;
@@ -63,6 +73,8 @@ export declare const jobService: {
     edit: (jobData: any) => Promise<any>;
     cancel: (jobData: any) => Promise<any>;
     delete: (jobData: any) => Promise<any>;
+    collectRequest: (data: { jobId: string }) => Promise<any>;
+    collectVerify: (data: { jobId: string; otp: string }) => Promise<any>;
 };
 export declare const pricingService: {
     create: (priceData: any) => Promise<any>;

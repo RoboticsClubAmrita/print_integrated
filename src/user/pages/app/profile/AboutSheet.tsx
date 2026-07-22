@@ -1,7 +1,6 @@
 import { AppIcon } from '@/components/brand/AppIcon'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
-import { resetDb } from '@/services/db'
 
 /** About PrintEase sheet (Profile → About). */
 export function AboutSheet({
@@ -28,17 +27,7 @@ export function AboutSheet({
         <Button fullWidth className="mt-6" onClick={onViewDemo}>
           View Demo
         </Button>
-        <button
-          type="button"
-          onClick={() => {
-            resetDb()
-            window.location.reload()
-          }}
-          className="mt-3 text-[13px] font-semibold text-muted hover:text-danger transition-colors"
-        >
-          Reset demo data
-        </button>
-        <p className="mt-6 text-[11.5px] font-medium text-muted/70">Version 1.0.0 (web demo)</p>
+        <p className="mt-6 text-[11.5px] font-medium text-muted/70">Version 1.0.0</p>
       </div>
     </Sheet>
   )

@@ -1,22 +1,19 @@
 /**
- * Auth flows. `login`/`logout`/`forgotPassword` call the REAL backend (the
- * same `services/api.js` the admin console uses) so both interfaces share
- * one login. Registration/email-verify stay mocked against the local db —
- * out of scope for the User/Admin merge, see the merge plan.
+ * Auth flows — all real, against the same backend the admin console uses
+ * (`src/services/api.js`), so both interfaces share one login/session.
+ * Signup is pending-until-verified: `/auth/register/start` emails an OTP to
+ * the school-derived address, `/auth/register/verify` creates the account
+ * and logs the user straight in.
  */
-import type { Role } from '@/types'
 import { MSG } from '@/lib/validators'
-import { delay } from '@/lib/delay'
-import { getDb, saveDb, savePrefs, uid } from '@/services/db'
-import { requestOtp, verifyOtp } from '@/services/otpService'
+import { savePrefs } from '@/services/db'
 import { useAppStore } from '@/store/appStore'
-import { authService as realAuth } from '../../services/api'
+import {
+  authService as realAuth,
+  userService as realUsers,
+} from '../../services/api'
 
 const INVALID_OTP = 'Invalid code. Try again.'
-
-function findUserByEmail(email: string) {
-  return getDb().users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase())
-}
 
 function apiErrorMessage(err: unknown, fallback: string): string {
   const e = err as { response?: { data?: { MESSAGE?: string; message?: string } } }
@@ -31,10 +28,11 @@ export async function login(
   if (!email.trim() || !password) return MSG.loginEmpty
   try {
     const data = await realAuth.login({ email, password })
-    if (!data?.token || !data?.user) return 'Incorrect email or password.'
+    const token = data?.accessToken || data?.token
+    if (!token || !data?.user) return 'Incorrect email or password.'
     const session = {
       userId: data.user._id,
-      token: data.token,
+      token,
       rememberMe: remember,
       createdAt: new Date().toISOString(),
     }
@@ -48,56 +46,53 @@ export async function login(
 
 export interface RegistrationDraft {
   name: string
-  email: string
-  password: string
   collegeId: string
   phone: string
-  role: Role
+  password: string
 }
 
-let pendingRegistration: RegistrationDraft | null = null
-
-/** Validates + parks the draft, then issues the email-verification OTP. */
+/** Starts pending-until-verified signup. Returns the school-derived email on success. */
 export async function register(
   draft: RegistrationDraft,
-): Promise<{ error: string | null; code?: string }> {
-  const { name, email, password, collegeId, phone } = draft
-  if (!name.trim() || !email.trim() || !password || !collegeId.trim() || !phone.trim()) {
+): Promise<{ error: string | null; email?: string }> {
+  const { name, collegeId, phone, password } = draft
+  if (!name.trim() || !collegeId.trim() || !phone.trim() || !password) {
     return { error: MSG.registerEmpty }
   }
-  await delay()
-  if (findUserByEmail(email)) {
-    return { error: 'An account with this email already exists.' }
+  try {
+    const data = await realAuth.registerStart({ collegeId: collegeId.trim(), name: name.trim(), phone: phone.trim(), password })
+    return { error: null, email: data?.email }
+  } catch (err) {
+    return { error: apiErrorMessage(err, 'Could not start registration.') }
   }
-  pendingRegistration = { ...draft, collegeId: collegeId.trim().toUpperCase() }
-  return { error: null, code: requestOtp('email-verify', email) }
 }
 
-export async function resendVerification(email: string): Promise<{ code: string }> {
-  await delay()
-  return { code: requestOtp('email-verify', email) }
+export async function resendVerification(collegeId: string): Promise<string | null> {
+  try {
+    await realAuth.registerResend({ collegeId })
+    return null
+  } catch (err) {
+    return apiErrorMessage(err, 'Could not resend the code.')
+  }
 }
 
-/** Verifies the signup OTP and commits the pending account. */
-export async function verifyEmail(email: string, otp: string): Promise<string | null> {
-  await delay()
-  if (!verifyOtp('email-verify', email, otp)) return INVALID_OTP
-  if (pendingRegistration && pendingRegistration.email.toLowerCase() === email.toLowerCase()) {
-    const db = getDb()
-    db.users.push({
-      id: uid('u'),
-      collegeId: pendingRegistration.collegeId,
-      name: pendingRegistration.name.trim(),
-      email: pendingRegistration.email.trim(),
-      phone: pendingRegistration.phone.trim(),
-      password: pendingRegistration.password,
-      role: pendingRegistration.role,
-      balance: 0,
-    })
-    saveDb()
-    pendingRegistration = null
+/** Verifies the signup OTP; on success the backend creates the account and logs the user in. */
+export async function verifyEmail(collegeId: string, otp: string): Promise<string | null> {
+  try {
+    const data = await realAuth.registerVerify({ collegeId, otp })
+    const token = data?.accessToken || data?.token
+    if (!token || !data?.user) return INVALID_OTP
+    const session = {
+      userId: data.user._id,
+      token,
+      rememberMe: true,
+      createdAt: new Date().toISOString(),
+    }
+    useAppStore.getState().setSession(session)
+    return null
+  } catch (err) {
+    return apiErrorMessage(err, INVALID_OTP)
   }
-  return null
 }
 
 export async function forgotPassword(email: string): Promise<string | null> {
@@ -111,50 +106,63 @@ export async function forgotPassword(email: string): Promise<string | null> {
 }
 
 export function logout(): void {
-  // Stateless JWT — the server call is best-effort; clear the local session
-  // immediately regardless of network state rather than waiting on it (and
-  // api.js only clears localStorage.token/user *after* that call resolves).
+  // Best-effort remote revoke; api.js clears localStorage.token/user itself
+  // (in its `finally`) regardless of whether the network call succeeds.
   realAuth.logout().catch(() => {})
-  localStorage.removeItem('token')
-  localStorage.removeItem('user')
   useAppStore.getState().clear()
 }
 
+/** Re-fetches the current user from the backend and syncs localStorage + the store. */
+async function refetchUser(userId: string): Promise<void> {
+  const res = await realUsers.getById(userId)
+  const raw = res?.DATA ?? res
+  if (!raw?._id) return
+  localStorage.setItem('user', JSON.stringify(raw))
+  useAppStore.getState().setUser({
+    id: raw._id,
+    collegeId: raw.collegeId ?? '',
+    name: raw.name ?? '',
+    email: raw.email ?? '',
+    phone: raw.phone ?? '',
+    password: '',
+    role: raw.role,
+    balance: raw.balance ?? 0,
+  })
+}
+
 export async function updateProfile(name: string, phone: string): Promise<string | null> {
-  await delay()
   const state = useAppStore.getState()
   if (!state.user) return MSG.network
-  const db = getDb()
-  const user = db.users.find((u) => u.id === state.user!.id)
-  if (!user) return MSG.network
-  user.name = name.trim()
-  user.phone = phone.trim()
-  saveDb()
-  state.refresh()
-  return null
+  try {
+    await realUsers.edit({ userId: state.user.id, name: name.trim(), phone: phone.trim() })
+    await refetchUser(state.user.id)
+    return null
+  } catch (err) {
+    return apiErrorMessage(err, MSG.network)
+  }
 }
 
 export async function requestEmailChange(
   newEmail: string,
-): Promise<{ error: string | null; code?: string }> {
-  await delay()
+): Promise<{ error: string | null }> {
   const userId = useAppStore.getState().user?.id
   if (!userId) return { error: MSG.network }
-  if (findUserByEmail(newEmail)) return { error: 'That email is already in use.' }
-  return { error: null, code: requestOtp('email-change', userId) }
+  try {
+    await realUsers.requestEmailChange({ userId, newEmail: newEmail.trim() })
+    return { error: null }
+  } catch (err) {
+    return { error: apiErrorMessage(err, 'Could not start the email change.') }
+  }
 }
 
-export async function verifyEmailChange(otp: string, newEmail: string): Promise<string | null> {
-  await delay()
-  const state = useAppStore.getState()
-  const userId = state.user?.id
+export async function verifyEmailChange(otp: string): Promise<string | null> {
+  const userId = useAppStore.getState().user?.id
   if (!userId) return MSG.network
-  if (!verifyOtp('email-change', userId, otp)) return INVALID_OTP
-  const db = getDb()
-  const user = db.users.find((u) => u.id === userId)
-  if (!user) return MSG.network
-  user.email = newEmail.trim()
-  saveDb()
-  state.refresh()
-  return null
+  try {
+    await realUsers.verifyEmailChange({ userId, otp })
+    await refetchUser(userId)
+    return null
+  } catch (err) {
+    return apiErrorMessage(err, INVALID_OTP)
+  }
 }
