@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowUpRight } from 'lucide-react'
-import { FileDropZone } from '@/components/app/FileDropZone'
+import { FolderDropZone } from '@/components/app/FolderDropZone'
 import { UploadOverlay } from '@/components/app/UploadOverlay'
 import { ConfigCard } from '@/pages/app/new-order/ConfigCard'
 import { SummaryPanel } from '@/pages/app/new-order/SummaryPanel'
@@ -9,6 +9,7 @@ import { PrintPreview, type PreviewConfig } from '@/pages/app/new-order/PrintPre
 import {
   detectPages,
   getFile,
+  mergeFilesIntoPdf,
   putFile,
   revokeFile,
   type StoredFile,
@@ -17,7 +18,7 @@ import { placeOrder } from '@/services/orderService'
 import { printCost } from '@/lib/pricing'
 import { delay } from '@/lib/delay'
 import { useAppStore, activeOrders, totalDue } from '@/store/appStore'
-import { showSuccess } from '@/store/uiStore'
+import { showSuccess, toast } from '@/store/uiStore'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import type { PrintSide } from '@/types'
 
@@ -35,6 +36,7 @@ export default function NewOrderPage() {
   const setSelectedLocation = useAppStore((s) => s.setSelectedLocation)
 
   const [fileId, setFileId] = useState<string | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [totalPages, setTotalPages] = useState<number | null>(null)
   const [detecting, setDetecting] = useState(false)
   const [side, setSide] = useState<PrintSide>('SINGLE')
@@ -56,21 +58,55 @@ export default function NewOrderPage() {
   const resetFile = () => {
     if (stored) revokeFile(stored.fileId)
     setFileId(null)
+    setSelectedFiles([])
     setTotalPages(null)
     setSelectedPages(null)
     setDetecting(false)
   }
 
-  const onFile = async (file: File) => {
+  const onFiles = async (files: File[]) => {
     if (stored) revokeFile(stored.fileId)
-    const next = putFile(file)
-    setFileId(next.fileId)
+
+    setFileId(null)
+    setSelectedFiles(files)
     setTotalPages(null)
     setSelectedPages(null)
     setDetecting(true)
+
+    const startedAt = Date.now()
+    let next: StoredFile | null = null
+
     try {
-      const [pages] = await Promise.all([detectPages(next), delay(UPLOAD_OVERLAY_MIN_MS)])
+      const mergedFile = await mergeFilesIntoPdf(files)
+      next = putFile(mergedFile)
+      setFileId(next.fileId)
+
+      const pages = await detectPages(next)
+      const remainingOverlayTime =
+        UPLOAD_OVERLAY_MIN_MS - (Date.now() - startedAt)
+
+      if (remainingOverlayTime > 0) {
+        await delay(remainingOverlayTime)
+      }
+
       setTotalPages(pages)
+    } catch (error) {
+      if (next) {
+        revokeFile(next.fileId)
+      }
+
+      setFileId(null)
+      setSelectedFiles([])
+      setTotalPages(null)
+      setSelectedPages(null)
+
+      toast(
+        'Unable to merge files',
+        error instanceof Error
+          ? error.message
+          : 'The selected files could not be merged into one PDF.',
+        'warning',
+      )
     } finally {
       setDetecting(false)
     }
@@ -178,11 +214,9 @@ export default function NewOrderPage() {
         <div className="p-5 sm:p-7">
           <StepHeader n="01" title="Upload" />
           <div className="mt-4">
-            <FileDropZone
-              stored={stored}
-              pages={totalPages}
-              detecting={detecting}
-              onFile={onFile}
+            <FolderDropZone
+              files={selectedFiles}
+              onFiles={onFiles}
               onClear={resetFile}
             />
           </div>
@@ -246,7 +280,14 @@ export default function NewOrderPage() {
         </div>
       </div>
 
-      <UploadOverlay open={detecting} fileName={stored?.file.name ?? ''} />
+      <UploadOverlay
+        open={detecting}
+        fileName={
+          selectedFiles.length === 1
+            ? selectedFiles[0].name
+            : `${selectedFiles.length} files`
+        }
+      />
 
       <PrintPreview
         open={previewOpen}
