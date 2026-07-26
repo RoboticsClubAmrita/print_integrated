@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { FolderOpen, FileText, UploadCloud, X } from 'lucide-react'
+import { FileText, FolderOpen, UploadCloud, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { motion } from 'motion/react'
 import { isAccepted } from '@/services/fileService'
@@ -12,19 +12,21 @@ type FolderDropZoneProps = {
   onClear: () => void
 }
 
-/**
- * Allows users to select an entire folder.
- *
- * Supported files are retained while unsupported files are skipped.
- * The relative folder path is available through file.webkitRelativePath.
- */
 export function FolderDropZone({
   files,
   onFiles,
   onClear,
 }: FolderDropZoneProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
+
+  const fileKey = (file: File) =>
+    [
+      file.webkitRelativePath || file.name,
+      file.size,
+      file.lastModified,
+    ].join('::')
 
   const acceptFiles = (selectedFiles: FileList | null) => {
     if (!selectedFiles) return
@@ -33,8 +35,8 @@ export function FolderDropZone({
 
     if (allFiles.length === 0) {
       toast(
-        'Empty folder',
-        'The selected folder does not contain any files.',
+        'No files selected',
+        'Choose one or more supported files.',
         'warning',
       )
       return
@@ -50,7 +52,7 @@ export function FolderDropZone({
     if (supportedFiles.length === 0) {
       toast(
         'No supported files',
-        'Choose a folder containing PDF, DOC, DOCX, JPG or PNG files.',
+        'Choose PDF, DOC, DOCX, JPG or PNG files.',
         'warning',
       )
       return
@@ -66,12 +68,61 @@ export function FolderDropZone({
       )
     }
 
-    onFiles(supportedFiles)
+    const existingKeys = new Set(files.map(fileKey))
+    const newUniqueFiles = supportedFiles.filter(
+      (file) => !existingKeys.has(fileKey(file)),
+    )
+
+    if (newUniqueFiles.length === 0) {
+      toast(
+        'Files already selected',
+        'The selected files are already in the upload list.',
+        'warning',
+      )
+      return
+    }
+
+    onFiles([...files, ...newUniqueFiles])
+  }
+
+  const openFilePicker = () => {
+    fileInputRef.current?.click()
   }
 
   const openFolderPicker = () => {
-    inputRef.current?.click()
+    folderInputRef.current?.click()
   }
+
+  const hiddenInputs = (
+    <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+        onChange={(event) => {
+          acceptFiles(event.target.files)
+          event.target.value = ''
+        }}
+        className="hidden"
+      />
+
+      <input
+        ref={folderInputRef}
+        type="file"
+        multiple
+        onChange={(event) => {
+          acceptFiles(event.target.files)
+          event.target.value = ''
+        }}
+        className="hidden"
+        {...{
+          webkitdirectory: '',
+          directory: '',
+        }}
+      />
+    </>
+  )
 
   if (files.length > 0) {
     return (
@@ -92,13 +143,13 @@ export function FolderDropZone({
             </p>
 
             <p className="mt-0.5 text-[12.5px] font-medium text-muted">
-              Folder ready for upload
+              Files ready to be merged
             </p>
           </div>
 
           <button
             type="button"
-            aria-label="Clear selected folder"
+            aria-label="Clear selected files"
             onClick={onClear}
             className="press grid size-9 shrink-0 place-items-center rounded-full border border-line bg-white transition-colors hover:bg-chip"
           >
@@ -113,7 +164,7 @@ export function FolderDropZone({
 
             return (
               <div
-                key={`${displayPath}-${file.size}-${index}`}
+                key={`${displayPath}-${file.size}-${file.lastModified}-${index}`}
                 className="flex items-center gap-2 rounded-[10px] border border-line bg-white px-3 py-2"
               >
                 <FileText
@@ -137,45 +188,31 @@ export function FolderDropZone({
           })}
         </div>
 
-        <button
-          type="button"
-          onClick={openFolderPicker}
-          className="press mt-4 w-full rounded-[12px] border border-line bg-white px-4 py-2.5 text-[13px] font-bold text-ink transition-colors hover:bg-chip"
-        >
-          Choose another folder
-        </button>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={openFilePicker}
+            className="press rounded-[12px] border border-line bg-white px-4 py-2.5 text-[13px] font-bold text-ink transition-colors hover:bg-chip"
+          >
+            Add files
+          </button>
 
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          onChange={(event) => {
-            acceptFiles(event.target.files)
+          <button
+            type="button"
+            onClick={openFolderPicker}
+            className="press rounded-[12px] border border-line bg-white px-4 py-2.5 text-[13px] font-bold text-ink transition-colors hover:bg-chip"
+          >
+            Add folder
+          </button>
+        </div>
 
-            // Allows the same folder to be selected again.
-            event.target.value = ''
-          }}
-          className="hidden"
-          {...{
-            webkitdirectory: '',
-            directory: '',
-          }}
-        />
+        {hiddenInputs}
       </motion.div>
     )
   }
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={openFolderPicker}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault()
-          openFolderPicker()
-        }
-      }}
       onDragOver={(event) => {
         event.preventDefault()
         setDragging(true)
@@ -190,10 +227,10 @@ export function FolderDropZone({
         acceptFiles(event.dataTransfer.files)
       }}
       className={clsx(
-        'group w-full cursor-pointer rounded-[16px] border-[1.5px] border-dashed px-6 py-9 text-center outline-none transition-colors duration-200',
+        'group w-full rounded-[16px] border-[1.5px] border-dashed px-6 py-9 text-center outline-none transition-colors duration-200',
         dragging
           ? 'border-success bg-success/[0.05]'
-          : 'border-line hover:border-ink/30 focus-visible:border-ink/50',
+          : 'border-line',
       )}
     >
       <motion.span
@@ -210,7 +247,7 @@ export function FolderDropZone({
       <p className="text-[14.5px] font-bold text-ink">
         {dragging
           ? 'Release to add files'
-          : 'Choose a folder to upload'}
+          : 'Choose files or a folder'}
       </p>
 
       <p className="mt-1 text-[12.5px] font-medium text-muted">
@@ -218,25 +255,28 @@ export function FolderDropZone({
       </p>
 
       <p className="mt-2 text-[11.5px] font-medium text-muted">
-        Unsupported files inside the folder will be skipped
+        You can add individual files and folders to the same upload
       </p>
 
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        onChange={(event) => {
-          acceptFiles(event.target.files)
+      <div className="mx-auto mt-5 grid max-w-sm gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={openFilePicker}
+          className="press rounded-[12px] bg-ink px-4 py-2.5 text-[13px] font-bold text-white"
+        >
+          Choose files
+        </button>
 
-          // Allows the same folder to be selected again.
-          event.target.value = ''
-        }}
-        className="hidden"
-        {...{
-          webkitdirectory: '',
-          directory: '',
-        }}
-      />
+        <button
+          type="button"
+          onClick={openFolderPicker}
+          className="press rounded-[12px] border border-line bg-white px-4 py-2.5 text-[13px] font-bold text-ink transition-colors hover:bg-chip"
+        >
+          Choose folder
+        </button>
+      </div>
+
+      {hiddenInputs}
     </div>
   )
 }
