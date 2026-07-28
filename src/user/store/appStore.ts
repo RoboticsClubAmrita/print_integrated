@@ -14,6 +14,8 @@ import { isPaid, orderCost } from '@/lib/orders'
 import { isToday } from '@/lib/format'
 import { jobService, penaltyService, hardwareService } from '../../services/api'
 
+export const DEMO_JOB_ID = 'demo-job'
+
 interface AppState {
   session: Session | null
   user: User | null
@@ -23,6 +25,8 @@ interface AppState {
   locations: PrintLocation[]
   selectedLocationId: string | null
   walkthroughSeen: boolean
+  tourSeen: boolean
+  demoMode: boolean
   lastSeenNotificationsAt: string | null
 
   /** Re-pull the current user's orders/penalties from the real backend. */
@@ -34,6 +38,10 @@ interface AppState {
   setUser: (user: User) => void
   setSelectedLocation: (id: string | null) => void
   markWalkthroughSeen: () => void
+  markTourSeen: () => void
+  setDemoMode: (v: boolean) => void
+  injectDemoOrder: (order: Order) => void
+  removeDemoOrder: () => void
   markNotificationsSeen: () => void
   clear: () => void
 }
@@ -70,6 +78,8 @@ function hydrate() {
     locations: [] as PrintLocation[],
     selectedLocationId: null as string | null,
     walkthroughSeen: prefs.walkthroughSeen,
+    tourSeen: prefs.tourSeen,
+    demoMode: false,
     lastSeenNotificationsAt: prefs.lastSeenNotificationsAt,
   }
   const token = localStorage.getItem('token')
@@ -137,6 +147,18 @@ export const useAppStore = create<AppState>()((set, get) => ({
     savePrefs({ walkthroughSeen: true })
     set({ walkthroughSeen: true })
   },
+
+  markTourSeen: () => {
+    savePrefs({ tourSeen: true })
+    set({ tourSeen: true })
+  },
+
+  setDemoMode: (v) => set({ demoMode: v }),
+
+  injectDemoOrder: (order) => set((s) => ({ orders: [order, ...s.orders] })),
+
+  removeDemoOrder: () =>
+    set((s) => ({ orders: s.orders.filter((o) => o.jobId !== DEMO_JOB_ID) })),
 
   markNotificationsSeen: () => {
     const now = new Date().toISOString()

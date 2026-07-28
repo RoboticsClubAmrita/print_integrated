@@ -16,7 +16,8 @@ import {
 import { placeOrder } from '@/services/orderService'
 import { printCost } from '@/lib/pricing'
 import { delay } from '@/lib/delay'
-import { useAppStore, activeOrders, totalDue } from '@/store/appStore'
+import { useAppStore, activeOrders, totalDue, DEMO_JOB_ID } from '@/store/appStore'
+import { DemoHint } from '@/components/app/DemoHint'
 import { showSuccess } from '@/store/uiStore'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import type { PrintSide } from '@/types'
@@ -33,6 +34,11 @@ export default function NewOrderPage() {
   const locations = useAppStore((s) => s.locations)
   const selectedLocationId = useAppStore((s) => s.selectedLocationId)
   const setSelectedLocation = useAppStore((s) => s.setSelectedLocation)
+  const demoMode = useAppStore((s) => s.demoMode)
+  const setDemoMode = useAppStore((s) => s.setDemoMode)
+  const injectDemoOrder = useAppStore((s) => s.injectDemoOrder)
+  const removeDemoOrder = useAppStore((s) => s.removeDemoOrder)
+  const [demoHintDismissed, setDemoHintDismissed] = useState(false)
 
   const [fileId, setFileId] = useState<string | null>(null)
   const [totalPages, setTotalPages] = useState<number | null>(null)
@@ -100,6 +106,52 @@ export default function NewOrderPage() {
     if (!stored || totalPages === null || !user) return
     setPlacing(true)
     try {
+      if (demoMode) {
+        // Briefly show a real-looking order ticket, then clean it up and
+        // explain what just happened — nothing here is ever sent to the
+        // backend or persisted.
+        injectDemoOrder({
+          id: 'DEMO-0001',
+          jobId: DEMO_JOB_ID,
+          userId: user.id,
+          fileName: stored.file.name,
+          fileSizeKb: stored.sizeKb,
+          pages: selectedPageCount,
+          totalDocPages: totalPages,
+          copies,
+          side,
+          colorMode: 'BW',
+          pageType: 'A4',
+          selectedPages,
+          createdAt: new Date().toISOString(),
+          scheduleType: scheduledFor ? 'SCHEDULED' : 'NOW',
+          scheduledFor: scheduledFor ? scheduledFor.toISOString() : null,
+          status: 'PENDING',
+          costPerPage: 0,
+          printCost: estimate,
+          balanceApplied: 0,
+          totalCost: estimate,
+          locationId: selectedLocationId,
+          locationName: selectedLocation?.name ?? null,
+          stackName: null,
+          collectedStackName: null,
+          nextTransitionAt: null,
+        })
+        setPreviewOpen(false)
+        navigate('/app/orders')
+
+        await delay(2000)
+        removeDemoOrder()
+        setDemoMode(false)
+        showSuccess({
+          title: 'This is how an order is placed',
+          subtitle: 'A real order stays right here until you collect it.',
+          icon: 'check',
+        })
+        navigate('/app')
+        return
+      }
+
       const order = await placeOrder({
         file: stored.file,
         fileName: stored.file.name,
@@ -177,7 +229,7 @@ export default function NewOrderPage() {
       <div className="mt-8 rounded-[20px] border border-line bg-white lg:grid lg:grid-cols-[1.12fr_0.88fr] lg:divide-x lg:divide-line">
         <div className="p-5 sm:p-7">
           <StepHeader n="01" title="Upload" />
-          <div className="mt-4">
+          <div className="mt-4" data-tour="tour-upload">
             <FileDropZone
               stored={stored}
               pages={totalPages}
@@ -186,6 +238,13 @@ export default function NewOrderPage() {
               onClear={resetFile}
             />
           </div>
+
+          <DemoHint
+            open={demoMode && !stored && !demoHintDismissed}
+            targetId="tour-upload"
+            message="Try uploading a file to see how ordering works — nothing here gets submitted for real."
+            onDismiss={() => setDemoHintDismissed(true)}
+          />
 
           <div className="mt-7 border-t border-line/80 pt-6">
             <StepHeader n="02" title="Configure" />

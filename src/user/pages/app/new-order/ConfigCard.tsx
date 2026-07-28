@@ -58,16 +58,18 @@ export function ConfigCard({
 
   return (
     <div>
-      <PillToggle
-        options={[
-          { value: 'SINGLE', label: 'Single-sided' },
-          { value: 'DOUBLE', label: 'Double-sided' },
-        ]}
-        value={side}
-        onChange={onSideChange}
-      />
+      <div data-tour="tour-side">
+        <PillToggle
+          options={[
+            { value: 'SINGLE', label: 'Single-sided' },
+            { value: 'DOUBLE', label: 'Double-sided' },
+          ]}
+          value={side}
+          onChange={onSideChange}
+        />
+      </div>
 
-      <div className="mt-4">
+      <div className="mt-4" data-tour="tour-pages">
         <FieldChip
           label="Pages"
           value={pagesValue}
@@ -79,13 +81,17 @@ export function ConfigCard({
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <StepperChip label="Copies" value={copies} min={1} onChange={onCopiesChange} />
-        <FieldChip
-          label="Print Time"
-          value={scheduledFor ? formatDateTimeDot(scheduledFor.toISOString()) : 'Now'}
-          trailingIcon={Calendar}
-          onClick={() => setScheduleOpen(true)}
-        />
+        <div data-tour="tour-copies">
+          <StepperChip label="Copies" value={copies} min={1} onChange={onCopiesChange} />
+        </div>
+        <div data-tour="tour-schedule">
+          <FieldChip
+            label="Print Time"
+            value={scheduledFor ? formatDateTimeDot(scheduledFor.toISOString()) : 'Now'}
+            trailingIcon={Calendar}
+            onClick={() => setScheduleOpen(true)}
+          />
+        </div>
       </div>
 
       {summaryLine && (

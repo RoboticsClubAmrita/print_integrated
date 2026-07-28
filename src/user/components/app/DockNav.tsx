@@ -25,7 +25,7 @@ const TABS = [
 export function DockNav({ placement }: { placement: 'inline' | 'floating-bottom' }) {
   if (placement === 'inline') {
     return (
-      <nav aria-label="Primary" className="flex items-center gap-1">
+      <nav aria-label="Primary" className="flex items-center gap-1" data-tour="tour-nav">
         {TABS.map((tab) => (
           <NavLink key={tab.to} to={tab.to} end={tab.end} className="relative rounded-full">
             {({ isActive }) => (
@@ -56,6 +56,7 @@ export function DockNav({ placement }: { placement: 'inline' | 'floating-bottom'
   return (
     <nav
       aria-label="Primary"
+      data-tour="tour-nav"
       className="dark-panel fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1.5 rounded-[30px] p-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-dock"
     >
       {TABS.map((tab) => (
