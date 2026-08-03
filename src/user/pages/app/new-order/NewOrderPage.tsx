@@ -188,7 +188,7 @@ export default function NewOrderPage() {
         return
       }
 
-      const order = await placeOrder({
+      const { order, paymentConfirmed } = await placeOrder({
         file: stored.file,
         fileName: stored.file.name,
         fileSizeKb: stored.sizeKb,
@@ -202,10 +202,15 @@ export default function NewOrderPage() {
       })
       setPreviewOpen(false)
       showSuccess({
-        title: 'Order Placed',
+        title: paymentConfirmed ? 'Order Placed & Paid' : 'Order Placed',
         subtitle: `${order.id} • ${order.fileName}`,
         icon: 'check',
       })
+      // The job exists either way, so don't fail the flow — but say so plainly
+      // rather than letting it look settled when it isn't.
+      if (!paymentConfirmed) {
+        toast('Payment could not be confirmed — settle this order from Billing.')
+      }
       navigate(`/app/orders/${order.id}`)
     } finally {
       setPlacing(false)

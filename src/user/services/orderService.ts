@@ -22,7 +22,13 @@ export interface NewOrderInput {
   locationName: string | null
 }
 
-export async function placeOrder(input: NewOrderInput): Promise<Order> {
+export interface PlacedOrder {
+  order: Order
+  /** False when the job was created but could not be marked paid. */
+  paymentConfirmed: boolean
+}
+
+export async function placeOrder(input: NewOrderInput): Promise<PlacedOrder> {
   const state = useAppStore.getState()
   const user = state.user
   if (!user) throw new Error('Not signed in')
@@ -69,17 +75,27 @@ export async function placeOrder(input: NewOrderInput): Promise<Order> {
   }
   if (!jobId) throw new Error('Could not place the order.')
 
+  // Confirming settles the job immediately — there is no separate pay step, so
+  // this must land for the order to leave "Awaiting Payment". One retry covers
+  // a transient blip; a real failure is reported rather than swallowed, since
+  // otherwise the job sits unpaid while the user is told it was placed.
+  let paymentConfirmed = true
   try {
     await realPayments.markPaid(jobId)
-  } catch (_) {
-    // Ignore if already paid or non-critical error
+  } catch (first) {
+    try {
+      await realPayments.markPaid(jobId)
+    } catch (second) {
+      paymentConfirmed = false
+      console.error('[placeOrder] could not mark job paid', { jobId, first, second })
+    }
   }
 
   const jobRes = await realJobs.getById(jobId)
   const job = jobRes?.DATA ?? jobRes
   const order = jobToOrder(job, state.locations)
   await state.refresh()
-  return order
+  return { order, paymentConfirmed }
 }
 
 export async function cancelOrder(jobId: string, reason?: string): Promise<void> {
