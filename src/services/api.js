@@ -1,7 +1,13 @@
 import axios from 'axios';
 
-// Use relative /api URL in production so Vercel can proxy over HTTPS
-const API = import.meta.env.MODE === 'production' ? '/api' : (import.meta.env.VITE_API_URL || 'http://13.60.246.95:5000/api');
+// Always call the API through a relative /api path so the request is proxied by
+// whatever is in front of us: the Vite dev proxy (-> http://localhost:5000, see
+// vite.config.ts) in development, and the Vercel rewrite in production. Going
+// relative also keeps the call same-origin, so it inherits the page's HTTPS
+// instead of being blocked as mixed content.
+//
+// Set VITE_API_URL to point a local build at some other backend (e.g. staging).
+const API = import.meta.env.VITE_API_URL || '/api';
 
 
 /* ================= AUTH ================= */
