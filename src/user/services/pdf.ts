@@ -34,6 +34,12 @@ export interface PdfHandle {
   numPages: number
   /** Renders one page into the canvas, sized to targetWidth CSS px (DPR-aware). */
   renderPage: (pageNumber: number, canvas: HTMLCanvasElement, targetWidth: number) => Promise<void>
+  /**
+   * Intrinsic page size at scale 1. Cheap (metadata only, no rasterising) —
+   * used to reserve the right height for a page before it renders, so the
+   * viewer doesn't reflow underneath the scroll position.
+   */
+  pageSize: (pageNumber: number) => Promise<{ width: number; height: number }>
   destroy: () => void
 }
 
@@ -57,6 +63,11 @@ export async function openPdf(data: ArrayBuffer): Promise<PdfHandle> {
       const canvasContext = canvas.getContext('2d')
       if (!canvasContext) return
       await page.render({ canvasContext, canvas, viewport }).promise
+    },
+    async pageSize(pageNumber) {
+      const page = await doc.getPage(pageNumber)
+      const { width, height } = page.getViewport({ scale: 1 })
+      return { width, height }
     },
     destroy() {
       void loadingTask.destroy()

@@ -12,23 +12,30 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { sheetUp } from '@/lib/motion'
 
-/**
- * Height of the page viewport. Each page fills exactly this, and the scroller
- * is the same height, so scroll-snap lands on one whole page at a time and
- * `scrollTop / clientHeight` gives the current index.
- */
-const PAGE_BOX = 'h-[420px] sm:h-[560px]'
+/** Height of the scroll viewport. Pages are fit to width, so an A4 page is
+ * taller than this — one page fills the view and you scroll through it and on
+ * into the next, the way a normal PDF viewer behaves. */
+const VIEWER_BOX = 'h-[440px] sm:h-[620px]'
+
+/** Horizontal breathing room around a page, in px. */
+const PAGE_INSET = 16
 
 /**
- * Single-page PDF viewer: shows one page at a time and scrolls (or steps)
- * through the rest, rather than stacking every page into one tall column.
- * Only the visible page and its immediate neighbours are rasterised, so a long
- * document doesn't render every page up front.
+ * Continuous PDF viewer. Pages are rendered fit-to-width and stacked, and the
+ * viewport scrolls freely through them — deliberately no scroll snapping,
+ * which hijacks the gesture and makes short drags jump a whole page.
+ *
+ * Only pages near the viewport are rasterised; the rest reserve their exact
+ * height up front (from the page's intrinsic size) so nothing reflows under
+ * the scroll position as they fill in.
  */
 function PdfPager({ stored, pages }: { stored: StoredFile; pages: number[] }) {
   const [handle, setHandle] = useState<PdfHandle | null>(null)
+  const [boxWidth, setBoxWidth] = useState(0)
+  const [ratios, setRatios] = useState<number[]>([])
   const [current, setCurrent] = useState(0)
   const scrollerRef = useRef<HTMLDivElement | null>(null)
+  const pageRefs = useRef<(HTMLDivElement | null)[]>([])
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([])
   const renderedRef = useRef<Set<number>>(new Set())
 
@@ -50,38 +57,73 @@ function PdfPager({ stored, pages }: { stored: StoredFile; pages: number[] }) {
     }
   }, [stored])
 
-  // A new document or page selection invalidates everything already drawn.
   useEffect(() => {
-    renderedRef.current = new Set()
-    setCurrent(0)
-    scrollerRef.current?.scrollTo({ top: 0 })
+    const el = scrollerRef.current
+    if (!el) return
+    const apply = () => setBoxWidth(el.clientWidth)
+    apply()
+    const observer = new ResizeObserver(apply)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [handle])
+
+  // Height/width per page, so each slot can reserve its space before drawing.
+  useEffect(() => {
+    if (!handle) return
+    let cancelled = false
+    Promise.all(pages.map((n) => handle.pageSize(n).then((s) => s.height / s.width)))
+      .then((next) => {
+        if (!cancelled) setRatios(next)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handle, pages.join(',')])
 
-  useEffect(() => {
-    if (!handle) return
-    const first = Math.max(0, current - 1)
-    const last = Math.min(pages.length - 1, current + 1)
-    for (let i = first; i <= last; i++) {
-      if (renderedRef.current.has(i)) continue
-      const canvas = canvasRefs.current[i]
-      if (!canvas) continue
-      renderedRef.current.add(i)
-      void handle.renderPage(pages[i], canvas, 720)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handle, current, pages.join(',')])
+  const pageWidth = Math.max(0, boxWidth - PAGE_INSET * 2)
 
-  const step = (delta: number) => {
+  // Anything already drawn is at the old width, so a resize invalidates it.
+  useEffect(() => {
+    renderedRef.current = new Set()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageWidth, handle, pages.join(',')])
+
+  useEffect(() => {
     const scroller = scrollerRef.current
-    if (!scroller) return
-    const next = Math.min(Math.max(current + delta, 0), pages.length - 1)
-    scroller.scrollTo({ top: next * scroller.clientHeight, behavior: 'smooth' })
+    if (!handle || !scroller || !pageWidth || ratios.length !== pages.length) return
+    const draw = (i: number) => {
+      if (renderedRef.current.has(i)) return
+      const canvas = canvasRefs.current[i]
+      if (!canvas) return
+      renderedRef.current.add(i)
+      void handle.renderPage(pages[i], canvas, pageWidth)
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) draw(Number((entry.target as HTMLElement).dataset.i))
+        }
+      },
+      { root: scroller, rootMargin: '600px 0px' },
+    )
+    pageRefs.current.forEach((el) => el && observer.observe(el))
+    return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handle, pageWidth, ratios, pages.join(',')])
+
+  const goTo = (index: number) => {
+    const scroller = scrollerRef.current
+    const target = pageRefs.current[Math.min(Math.max(index, 0), pages.length - 1)]
+    if (scroller && target) {
+      scroller.scrollTo({ top: target.offsetTop - PAGE_INSET, behavior: 'smooth' })
+    }
   }
 
   if (!handle) {
     return (
-      <div className={`grid place-items-center ${PAGE_BOX}`}>
+      <div className={`grid place-items-center ${VIEWER_BOX}`}>
         <Spinner size={26} />
       </div>
     )
@@ -92,28 +134,48 @@ function PdfPager({ stored, pages }: { stored: StoredFile; pages: number[] }) {
       <div
         ref={scrollerRef}
         onScroll={(e) => {
-          const el = e.currentTarget
-          setCurrent(Math.round(el.scrollTop / el.clientHeight))
+          // Whichever page covers the middle of the viewport is "current".
+          const scroller = e.currentTarget
+          const middle = scroller.scrollTop + scroller.clientHeight / 2
+          let index = 0
+          pageRefs.current.forEach((el, i) => {
+            if (el && el.offsetTop <= middle) index = i
+          })
+          setCurrent(index)
         }}
-        className={`snap-y snap-mandatory overflow-y-auto ${PAGE_BOX}`}
+        className={`relative overflow-y-auto ${VIEWER_BOX}`}
       >
-        {pages.map((pageNumber, i) => (
-          <div key={pageNumber} className={`snap-start grid place-items-center p-4 ${PAGE_BOX}`}>
-            <canvas
+        <div className="flex flex-col items-center" style={{ gap: PAGE_INSET, padding: PAGE_INSET }}>
+          {pages.map((pageNumber, i) => (
+            <div
+              key={pageNumber}
+              data-i={i}
               ref={(el) => {
-                canvasRefs.current[i] = el
+                pageRefs.current[i] = el
               }}
-              className="max-h-full max-w-full rounded-[8px] shadow-lift"
-            />
-          </div>
-        ))}
+            >
+              <canvas
+                ref={(el) => {
+                  canvasRefs.current[i] = el
+                }}
+                // Reserved before render, then overwritten by renderPage with
+                // the same numbers — so the page never resizes as it appears.
+                style={{
+                  width: pageWidth || undefined,
+                  height: pageWidth ? pageWidth * (ratios[i] ?? 1.414) : undefined,
+                }}
+                className="block rounded-[6px] bg-white shadow-lift"
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="flex items-center justify-between gap-3 border-t border-line px-3 py-2.5">
         <button
           type="button"
           aria-label="Previous page"
-          onClick={() => step(-1)}
+          onClick={() => goTo(current - 1)}
           disabled={current === 0}
           className="press grid size-9 place-items-center rounded-full bg-chip transition-colors hover:bg-line/70 disabled:opacity-35"
         >
@@ -125,7 +187,7 @@ function PdfPager({ stored, pages }: { stored: StoredFile; pages: number[] }) {
         <button
           type="button"
           aria-label="Next page"
-          onClick={() => step(1)}
+          onClick={() => goTo(current + 1)}
           disabled={current >= pages.length - 1}
           className="press grid size-9 place-items-center rounded-full bg-chip transition-colors hover:bg-line/70 disabled:opacity-35"
         >
