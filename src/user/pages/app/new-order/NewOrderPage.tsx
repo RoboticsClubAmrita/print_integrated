@@ -261,7 +261,11 @@ export default function NewOrderPage() {
         </div>
       </div>
 
-      {/* ————— Print console: 01 upload · 02 configure | 03 review ————— */}
+      {/* ————— Print console: 01 upload · 02 configure | 03 review —————
+          Swapped out in place for the preview + confirm step below, so placing
+          an order never navigates away from this page. Every field is held in
+          this component's state, so unmounting the console preserves it. */}
+      {!previewOpen && (
       <div className="mt-8 rounded-[20px] border border-line bg-white lg:grid lg:grid-cols-[1.12fr_0.88fr] lg:divide-x lg:divide-line">
         <div className="p-5 sm:p-7">
           <StepHeader n="01" title="Upload" />
@@ -319,9 +323,19 @@ export default function NewOrderPage() {
           </div>
         </div>
       </div>
+      )}
 
-      {/* Mobile: summary collapses into a sticky bar above the dock. */}
-      <div className="lg:hidden fixed bottom-[100px] inset-x-4 z-30">
+      <PrintPreview
+        open={previewOpen}
+        config={previewConfig}
+        confirming={placing}
+        onCancel={() => setPreviewOpen(false)}
+        onConfirm={confirmOrder}
+      />
+
+      {/* Mobile: summary collapses into a sticky bar above the dock. Hidden
+          during preview — the confirm action lives in the preview itself. */}
+      <div hidden={previewOpen} className="lg:hidden fixed bottom-[100px] inset-x-4 z-30">
         <div className="dark-panel relative overflow-hidden rounded-[22px] px-5 py-4 flex items-center justify-between gap-4">
           <div aria-hidden className="absolute inset-0 bg-dots pointer-events-none" />
           <div className="relative">
@@ -346,14 +360,6 @@ export default function NewOrderPage() {
             ? selectedFiles[0].name
             : `${selectedFiles.length} files`
         }
-      />
-
-      <PrintPreview
-        open={previewOpen}
-        config={previewConfig}
-        confirming={placing}
-        onCancel={() => setPreviewOpen(false)}
-        onConfirm={confirmOrder}
       />
     </>
   )
