@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { AppHeader } from '@/components/app/AppHeader'
 import { DockNav } from '@/components/app/DockNav'
-import { WalkthroughOverlay } from '@/components/app/WalkthroughOverlay'
 import { CoachTour } from '@/components/app/CoachTour'
 import { WelcomeDialog } from '@/components/app/WelcomeDialog'
 import { NEW_ORDER_TOUR_STEPS } from '@/lib/tourSteps'
@@ -11,17 +10,17 @@ import { useDesktop } from '@/hooks/useMediaQuery'
 
 /**
  * Hosts the four authenticated tabs behind the sticky header (desktop) /
- * floating bottom dock (mobile). First visit runs, in order: the carousel
- * walkthrough, then a spotlight coach-mark tour over the New Order page,
- * then a welcome dialog offering a guided demo order — mirrors
- * ShellScreen's TourCoordinator flow in the Flutter app.
+ * floating bottom dock (mobile). First visit runs a spotlight coach-mark tour
+ * over the New Order page, then a welcome dialog offering a guided demo order
+ * — mirrors ShellScreen's TourCoordinator flow in the Flutter app.
+ *
+ * The carousel walkthrough that used to gate first launch is gone; it is still
+ * available on demand from Profile -> About PrintEase -> View Demo.
  */
 export function AppShell() {
   const desktop = useDesktop()
   const navigate = useNavigate()
 
-  const walkthroughSeen = useAppStore((s) => s.walkthroughSeen)
-  const markWalkthroughSeen = useAppStore((s) => s.markWalkthroughSeen)
   const tourSeen = useAppStore((s) => s.tourSeen)
   const markTourSeen = useAppStore((s) => s.markTourSeen)
   const demoMode = useAppStore((s) => s.demoMode)
@@ -40,15 +39,14 @@ export function AppShell() {
     loadLocations()
   }, [userId, refresh, loadLocations])
 
-  // Once the carousel has already been seen (returning session), the coach
-  // tour can still be pending — pick it up straight away.
+  // First visit starts straight at the coach tour.
   useEffect(() => {
-    if (walkthroughSeen && !tourSeen) {
+    if (!tourSeen) {
       navigate('/app')
       setTourOpen(true)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walkthroughSeen, tourSeen])
+  }, [tourSeen])
 
   return (
     <div className="min-h-screen bg-bg">
@@ -75,16 +73,6 @@ export function AppShell() {
         </div>
       </main>
       {!desktop && <DockNav placement="floating-bottom" />}
-
-      <WalkthroughOverlay
-        open={!walkthroughSeen}
-        skipLabel="Skip"
-        onFinish={() => {
-          markWalkthroughSeen()
-          navigate('/app')
-          setTourOpen(true)
-        }}
-      />
 
       <CoachTour
         steps={NEW_ORDER_TOUR_STEPS}
