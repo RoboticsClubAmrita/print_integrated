@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import { ArrowLeft, FileWarning } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronUp, FileWarning } from 'lucide-react'
 import type { StoredFile } from '@/services/fileService'
 import type { PrintLocation, PrintSide } from '@/types'
 import { openPdf, type PdfHandle } from '@/services/pdf'
@@ -12,12 +12,25 @@ import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { sheetUp } from '@/lib/motion'
 
-const THUMB_CAP = 12
+/**
+ * Height of the page viewport. Each page fills exactly this, and the scroller
+ * is the same height, so scroll-snap lands on one whole page at a time and
+ * `scrollTop / clientHeight` gives the current index.
+ */
+const PAGE_BOX = 'h-[420px] sm:h-[560px]'
 
-function PdfThumbnails({ stored, pages }: { stored: StoredFile; pages: number[] }) {
+/**
+ * Single-page PDF viewer: shows one page at a time and scrolls (or steps)
+ * through the rest, rather than stacking every page into one tall column.
+ * Only the visible page and its immediate neighbours are rasterised, so a long
+ * document doesn't render every page up front.
+ */
+function PdfPager({ stored, pages }: { stored: StoredFile; pages: number[] }) {
   const [handle, setHandle] = useState<PdfHandle | null>(null)
+  const [current, setCurrent] = useState(0)
+  const scrollerRef = useRef<HTMLDivElement | null>(null)
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([])
-  const shown = pages.slice(0, THUMB_CAP)
+  const renderedRef = useRef<Set<number>>(new Set())
 
   useEffect(() => {
     let cancelled = false
@@ -37,39 +50,88 @@ function PdfThumbnails({ stored, pages }: { stored: StoredFile; pages: number[] 
     }
   }, [stored])
 
+  // A new document or page selection invalidates everything already drawn.
   useEffect(() => {
-    if (!handle) return
-    shown.forEach((pageNumber, i) => {
-      const canvas = canvasRefs.current[i]
-      if (canvas) void handle.renderPage(pageNumber, canvas, 480)
-    })
+    renderedRef.current = new Set()
+    setCurrent(0)
+    scrollerRef.current?.scrollTo({ top: 0 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handle, pages.join(',')])
 
+  useEffect(() => {
+    if (!handle) return
+    const first = Math.max(0, current - 1)
+    const last = Math.min(pages.length - 1, current + 1)
+    for (let i = first; i <= last; i++) {
+      if (renderedRef.current.has(i)) continue
+      const canvas = canvasRefs.current[i]
+      if (!canvas) continue
+      renderedRef.current.add(i)
+      void handle.renderPage(pages[i], canvas, 720)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handle, current, pages.join(',')])
+
+  const step = (delta: number) => {
+    const scroller = scrollerRef.current
+    if (!scroller) return
+    const next = Math.min(Math.max(current + delta, 0), pages.length - 1)
+    scroller.scrollTo({ top: next * scroller.clientHeight, behavior: 'smooth' })
+  }
+
   if (!handle) {
     return (
-      <div className="grid place-items-center h-[460px]">
+      <div className={`grid place-items-center ${PAGE_BOX}`}>
         <Spinner size={26} />
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col items-center gap-4 py-4">
-      {shown.map((pageNumber, i) => (
-        <canvas
-          key={pageNumber}
-          ref={(el) => {
-            canvasRefs.current[i] = el
-          }}
-          className="max-w-full rounded-[8px] shadow-lift"
-        />
-      ))}
-      {pages.length > THUMB_CAP && (
-        <p className="text-[13px] font-semibold text-muted py-2">
-          + {pages.length - THUMB_CAP} more page{pages.length - THUMB_CAP === 1 ? '' : 's'}
+    <div>
+      <div
+        ref={scrollerRef}
+        onScroll={(e) => {
+          const el = e.currentTarget
+          setCurrent(Math.round(el.scrollTop / el.clientHeight))
+        }}
+        className={`snap-y snap-mandatory overflow-y-auto ${PAGE_BOX}`}
+      >
+        {pages.map((pageNumber, i) => (
+          <div key={pageNumber} className={`snap-start grid place-items-center p-4 ${PAGE_BOX}`}>
+            <canvas
+              ref={(el) => {
+                canvasRefs.current[i] = el
+              }}
+              className="max-h-full max-w-full rounded-[8px] shadow-lift"
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between gap-3 border-t border-line px-3 py-2.5">
+        <button
+          type="button"
+          aria-label="Previous page"
+          onClick={() => step(-1)}
+          disabled={current === 0}
+          className="press grid size-9 place-items-center rounded-full bg-chip transition-colors hover:bg-line/70 disabled:opacity-35"
+        >
+          <ChevronUp size={17} strokeWidth={2.2} />
+        </button>
+        <p className="text-[12.5px] font-bold text-muted" aria-live="polite">
+          Page {current + 1} of {pages.length}
         </p>
-      )}
+        <button
+          type="button"
+          aria-label="Next page"
+          onClick={() => step(1)}
+          disabled={current >= pages.length - 1}
+          className="press grid size-9 place-items-center rounded-full bg-chip transition-colors hover:bg-line/70 disabled:opacity-35"
+        >
+          <ChevronDown size={17} strokeWidth={2.2} />
+        </button>
+      </div>
     </div>
   )
 }
@@ -141,7 +203,7 @@ export function PrintPreview({
         <div className="p-5 sm:p-7">
           <div className="overflow-hidden rounded-[16px] bg-chip/40">
             {config.stored.kind === 'pdf' ? (
-              <PdfThumbnails stored={config.stored} pages={pages} />
+              <PdfPager stored={config.stored} pages={pages} />
             ) : config.stored.kind === 'image' ? (
               <div className="grid place-items-center p-6">
                 <img
