@@ -60,7 +60,11 @@ export function Sheet({
               'absolute bg-white shadow-pop flex flex-col',
               isRight
                 ? 'top-0 right-0 h-full w-[440px] max-w-[92vw] rounded-l-[28px]'
-                : 'bottom-0 inset-x-0 max-h-[85vh] rounded-t-[28px]',
+                : // Full-bleed on phones; centred and capped from `sm` up so it
+                  // doesn't stretch across a laptop viewport. Centring uses
+                  // `mx-auto` rather than a translate utility because `sheetUp`
+                  // animates `y`, and Motion's inline transform would win.
+                  'bottom-0 inset-x-0 mx-auto w-full sm:max-w-[440px] max-h-[85vh] rounded-t-[28px]',
             )}
           >
             {!isRight && (
