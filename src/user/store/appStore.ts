@@ -24,7 +24,6 @@ interface AppState {
   notifications: AppNotification[]
   locations: PrintLocation[]
   selectedLocationId: string | null
-  walkthroughSeen: boolean
   tourSeen: boolean
   demoMode: boolean
   lastSeenNotificationsAt: string | null
@@ -37,7 +36,6 @@ interface AppState {
   /** Overwrite the in-memory user (e.g. after a profile edit re-fetch). */
   setUser: (user: User) => void
   setSelectedLocation: (id: string | null) => void
-  markWalkthroughSeen: () => void
   markTourSeen: () => void
   setDemoMode: (v: boolean) => void
   injectDemoOrder: (order: Order) => void
@@ -77,7 +75,6 @@ function hydrate() {
     notifications: [] as AppNotification[],
     locations: [] as PrintLocation[],
     selectedLocationId: null as string | null,
-    walkthroughSeen: prefs.walkthroughSeen,
     tourSeen: prefs.tourSeen,
     demoMode: false,
     lastSeenNotificationsAt: prefs.lastSeenNotificationsAt,
@@ -142,11 +139,6 @@ export const useAppStore = create<AppState>()((set, get) => ({
   setUser: (user) => set({ user }),
 
   setSelectedLocation: (id) => set({ selectedLocationId: id }),
-
-  markWalkthroughSeen: () => {
-    savePrefs({ walkthroughSeen: true })
-    set({ walkthroughSeen: true })
-  },
 
   markTourSeen: () => {
     savePrefs({ tourSeen: true })

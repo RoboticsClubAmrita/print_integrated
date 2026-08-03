@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { WALKTHROUGH_STEPS } from '@/components/app/WalkthroughOverlay'
+import { HOW_IT_WORKS_STEPS } from '@/lib/howItWorksSteps'
 import { staggerParent, fadeSlideChild } from '@/lib/motion'
 import { clsx } from 'clsx'
 
@@ -66,7 +66,7 @@ export function HowItWorks() {
             viewport={{ once: true, margin: '-40px' }}
             className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-line/60 border border-line border-t-0 rounded-b-card overflow-hidden"
           >
-          {WALKTHROUGH_STEPS.map((step, i) => {
+          {HOW_IT_WORKS_STEPS.map((step, i) => {
             const inked = i === 4
             return (
               <motion.div

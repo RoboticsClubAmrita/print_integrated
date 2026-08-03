@@ -100,7 +100,6 @@ export interface Session {
 
 export interface Prefs {
   rememberedEmail: string | null
-  walkthroughSeen: boolean
   tourSeen: boolean
   lastSeenNotificationsAt: string | null // ISO 8601
 }

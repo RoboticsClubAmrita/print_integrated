@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { ChevronRight, Info, LogOut, Pencil, Receipt } from 'lucide-react'
-import { WalkthroughOverlay } from '@/components/app/WalkthroughOverlay'
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { EditProfileModal } from '@/pages/app/profile/EditProfileModal'
 import { RatesSheet } from '@/pages/app/profile/RatesSheet'
@@ -60,7 +59,6 @@ export default function ProfilePage() {
   const [editOpen, setEditOpen] = useState(false)
   const [ratesOpen, setRatesOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
-  const [demoOpen, setDemoOpen] = useState(false)
 
   if (!user) return null
 
@@ -128,15 +126,7 @@ export default function ProfilePage() {
 
       <EditProfileModal open={editOpen} user={user} onClose={() => setEditOpen(false)} />
       <RatesSheet open={ratesOpen} onClose={() => setRatesOpen(false)} />
-      <AboutSheet
-        open={aboutOpen}
-        onClose={() => setAboutOpen(false)}
-        onViewDemo={() => {
-          setAboutOpen(false)
-          setDemoOpen(true)
-        }}
-      />
-      <WalkthroughOverlay open={demoOpen} onFinish={() => setDemoOpen(false)} skipLabel="Close" />
+      <AboutSheet open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </div>
   )
 }

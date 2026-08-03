@@ -1,17 +1,8 @@
 import { AppIcon } from '@/components/brand/AppIcon'
-import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 
 /** About PrintEase sheet (Profile → About). */
-export function AboutSheet({
-  open,
-  onClose,
-  onViewDemo,
-}: {
-  open: boolean
-  onClose: () => void
-  onViewDemo: () => void
-}) {
+export function AboutSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <Sheet open={open} onClose={onClose}>
       <div className="flex flex-col items-center text-center pt-2">
@@ -24,9 +15,6 @@ export function AboutSheet({
           Upload documents, customize print settings and collect your prints — without the queue.
         </p>
 
-        <Button fullWidth className="mt-6" onClick={onViewDemo}>
-          View Demo
-        </Button>
         <p className="mt-6 text-[11.5px] font-medium text-muted/70">Version 1.0.0</p>
       </div>
     </Sheet>
