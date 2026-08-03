@@ -36,11 +36,13 @@ export function SummaryPanel({
 }) {
   return (
     <div className="flex flex-col gap-5">
-      <LocationPicker
-        locations={locations}
-        selectedId={selectedLocationId}
-        onChange={onLocationChange}
-      />
+      <div data-tour="tour-location">
+        <LocationPicker
+          locations={locations}
+          selectedId={selectedLocationId}
+          onChange={onLocationChange}
+        />
+      </div>
 
       <dl className="flex flex-col gap-2.5 text-[13.5px] font-medium">
         <div className="flex items-baseline justify-between">
@@ -55,7 +57,10 @@ export function SummaryPanel({
         </div>
       </dl>
 
-      <div className="dark-panel relative hidden overflow-hidden rounded-[18px] p-5 lg:block">
+      <div
+        className="dark-panel relative hidden overflow-hidden rounded-[18px] p-5 lg:block"
+        data-tour="tour-total"
+      >
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-dots" />
         <div className="relative">
           <div className="flex items-baseline justify-between">
@@ -74,6 +79,7 @@ export function SummaryPanel({
             loading={loading}
             onClick={onSubmit}
             className="mt-4"
+            data-tour="tour-submit"
           >
             Place Print Order
           </Button>

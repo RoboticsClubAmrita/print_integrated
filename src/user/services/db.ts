@@ -15,6 +15,7 @@ export function uid(prefix = 'id'): string {
 const DEFAULT_PREFS: Prefs = {
   rememberedEmail: null,
   walkthroughSeen: false,
+  tourSeen: false,
   lastSeenNotificationsAt: null,
 }
 
