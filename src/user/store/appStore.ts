@@ -1,6 +1,6 @@
 /**
  * Global app state (session, user, orders, penalties, locations).
- * `session`/`user` hydrate synchronously from `localStorage.token`/`.user`
+ * `session`/`user` hydrate synchronously from the session store (local or
  * (written by the real backend login — see `src/services/api.js`) so route
  * guards never flash. Orders/penalties/locations are fetched from the real
  * Postgres-backed API (`refresh()`/`loadLocations()`), called from
@@ -8,11 +8,12 @@
  */
 import { create } from 'zustand'
 import type { AppNotification, Order, Penalty, PrintLocation, Session, User } from '@/types'
-import { loadPrefs, savePrefs } from '@/services/db'
+import { hasSeenTour, loadPrefs, markTourSeenFor, savePrefs } from '@/services/db'
 import { jobToOrder, locationToPrintLocation, penaltyToPenalty } from '@/lib/adapters'
 import { isPaid, orderCost } from '@/lib/orders'
 import { isToday } from '@/lib/format'
 import { jobService, penaltyService, hardwareService } from '../../services/api'
+import { getStoredUser, getToken, isPersistent } from '../../services/tokenStore'
 
 export const DEMO_JOB_ID = 'demo-job'
 
@@ -25,6 +26,8 @@ interface AppState {
   locations: PrintLocation[]
   selectedLocationId: string | null
   tourSeen: boolean
+  /** Bumped to ask the shell to replay the walkthrough from step 1. */
+  tourReplays: number
   demoMode: boolean
   lastSeenNotificationsAt: string | null
 
@@ -37,6 +40,8 @@ interface AppState {
   setUser: (user: User) => void
   setSelectedLocation: (id: string | null) => void
   markTourSeen: () => void
+  /** Replay the walkthrough on demand (Profile → About PrintEase). */
+  replayTour: () => void
   setDemoMode: (v: boolean) => void
   injectDemoOrder: (order: Order) => void
   removeDemoOrder: () => void
@@ -44,10 +49,10 @@ interface AppState {
   clear: () => void
 }
 
-/** Reads the real authenticated user (written by the real login) directly from localStorage. */
+/** Reads the real authenticated user, from whichever store the session chose. */
 function realUser(): User | null {
   try {
-    const raw = localStorage.getItem('user')
+    const raw = getStoredUser()
     if (!raw) return null
     const u = JSON.parse(raw)
     const id = u?._id ?? u?.id
@@ -75,19 +80,21 @@ function hydrate() {
     notifications: [] as AppNotification[],
     locations: [] as PrintLocation[],
     selectedLocationId: null as string | null,
-    tourSeen: prefs.tourSeen,
+    tourSeen: true, // replaced below once the restored user is known
+    tourReplays: 0,
     demoMode: false,
     lastSeenNotificationsAt: prefs.lastSeenNotificationsAt,
   }
-  const token = localStorage.getItem('token')
+  const token = getToken()
   const user = token ? realUser() : null
   if (!token || !user) {
     return { ...base, session: null, user: null }
   }
+  base.tourSeen = hasSeenTour(user.id)
   const session: Session = {
     userId: user.id,
     token,
-    rememberMe: true,
+    rememberMe: isPersistent(),
     createdAt: new Date().toISOString(),
   }
   return { ...base, session, user }
@@ -133,7 +140,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
       return
     }
     const user = realUser()
-    set({ session, user, orders: [], penalties: [] })
+    set({ session, user, orders: [], penalties: [], tourSeen: hasSeenTour(user?.id) })
   },
 
   setUser: (user) => set({ user }),
@@ -141,9 +148,11 @@ export const useAppStore = create<AppState>()((set, get) => ({
   setSelectedLocation: (id) => set({ selectedLocationId: id }),
 
   markTourSeen: () => {
-    savePrefs({ tourSeen: true })
+    markTourSeenFor(get().user?.id)
     set({ tourSeen: true })
   },
+
+  replayTour: () => set((s) => ({ tourReplays: s.tourReplays + 1 })),
 
   setDemoMode: (v) => set({ demoMode: v }),
 

@@ -39,7 +39,12 @@ export declare const webhookAPI: string;
 
 
 export declare const authService: {
-    login: (credentials: { email: string; password: string }) => Promise<any>;
+    login: (credentials: {
+        email: string;
+        password: string;
+        /** Omitted means persist — see controllers/authController.wantsPersistentSession. */
+        rememberMe?: boolean;
+    }) => Promise<any>;
     refresh: () => Promise<any>;
     logout: () => Promise<any>;
     logoutAll: () => Promise<any>;

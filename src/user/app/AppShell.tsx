@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
+import { X } from 'lucide-react'
 import { AppHeader } from '@/components/app/AppHeader'
 import { DockNav } from '@/components/app/DockNav'
 import { CoachTour } from '@/components/app/CoachTour'
@@ -23,6 +24,7 @@ export function AppShell() {
 
   const tourSeen = useAppStore((s) => s.tourSeen)
   const markTourSeen = useAppStore((s) => s.markTourSeen)
+  const tourReplays = useAppStore((s) => s.tourReplays)
   const demoMode = useAppStore((s) => s.demoMode)
   const setDemoMode = useAppStore((s) => s.setDemoMode)
   const removeDemoOrder = useAppStore((s) => s.removeDemoOrder)
@@ -33,6 +35,12 @@ export function AppShell() {
   const [tourOpen, setTourOpen] = useState(false)
   const [welcomeOpen, setWelcomeOpen] = useState(false)
 
+  const exitDemo = () => {
+    removeDemoOrder()
+    setDemoMode(false)
+    navigate('/app')
+  }
+
   useEffect(() => {
     if (!userId) return
     refresh()
@@ -40,13 +48,32 @@ export function AppShell() {
   }, [userId, refresh, loadLocations])
 
   // First visit starts straight at the coach tour.
+  //
+  // The flag is set the moment the tour is *shown*, not when it is finished:
+  // "seen once" has to mean once however it ends. Marking it on completion
+  // meant closing the tab, reloading, or backing out mid-tour left the flag
+  // false, so the tour reappeared at every single login. Mirrors
+  // SessionStore.seenTour in the Flutter app, which is likewise a
+  // shown-once flag that survives logout.
   useEffect(() => {
     if (!tourSeen) {
       navigate('/app')
       setTourOpen(true)
+      markTourSeen()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourSeen])
+
+  // Replay on demand (Profile → About PrintEase → Replay walkthrough).
+  // The steps point at New Order, so go there first; CoachTour resets to
+  // step 1 whenever it opens, and retries until its targets are mounted.
+  useEffect(() => {
+    if (!tourReplays) return
+    navigate('/app')
+    setWelcomeOpen(false)
+    setTourOpen(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tourReplays])
 
   return (
     <div className="min-h-screen bg-bg">
@@ -55,14 +82,19 @@ export function AppShell() {
           <p className="flex-1 text-[12.5px] font-bold">Demo Mode — placing a sample order</p>
           <button
             type="button"
-            onClick={() => {
-              removeDemoOrder()
-              setDemoMode(false)
-              navigate('/app')
-            }}
+            onClick={exitDemo}
             className="text-[12.5px] font-bold underline underline-offset-2"
           >
             Exit
+          </button>
+          <button
+            type="button"
+            onClick={exitDemo}
+            aria-label="Exit demo mode"
+            title="Exit demo mode"
+            className="-mr-1 grid size-7 shrink-0 place-items-center rounded-full text-white/70 transition-colors hover:bg-white/15 hover:text-white"
+          >
+            <X size={15} strokeWidth={2.5} />
           </button>
         </div>
       )}
@@ -79,9 +111,11 @@ export function AppShell() {
         open={tourOpen}
         onFinish={() => {
           setTourOpen(false)
-          markTourSeen()
           setWelcomeOpen(true)
         }}
+        // Dismissing with the cross skips the welcome dialog entirely — the
+        // point of the cross is to get out, not to be handed another modal.
+        onClose={() => setTourOpen(false)}
       />
 
       <WelcomeDialog

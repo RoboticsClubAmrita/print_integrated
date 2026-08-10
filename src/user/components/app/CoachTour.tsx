@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { DUR, EASE } from '@/lib/motion'
 
@@ -12,24 +13,53 @@ export interface TourStep {
 
 const PAD = 8
 
+/** How long to keep looking for a step's target before giving up (~1s). */
+const FIND_ATTEMPTS = 20
+const FIND_RETRY_MS = 50
+
 function useTargetRect(id: string | null) {
   const [rect, setRect] = useState<DOMRect | null>(null)
 
   useLayoutEffect(() => {
     setRect(null)
     if (!id) return
-    const el = document.querySelector(`[data-tour="${id}"]`)
-    if (!el) return
-    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
 
-    const update = () => setRect(el.getBoundingClientRect())
-    const t = setTimeout(update, 320) // let the scroll settle first
-    window.addEventListener('resize', update)
-    window.addEventListener('scroll', update, true)
+    let cancelled = false
+    let cleanup: (() => void) | undefined
+
+    // The target may not be mounted yet — replaying the walkthrough from
+    // Profile navigates to New Order and opens the tour in the same breath.
+    // Giving up on the first miss left the step with no spotlight at all,
+    // so look again for a few frames before conceding.
+    const attach = (attempt = 0) => {
+      if (cancelled) return
+
+      const el = document.querySelector(`[data-tour="${id}"]`)
+      if (!el) {
+        if (attempt < FIND_ATTEMPTS) {
+          const retry = setTimeout(() => attach(attempt + 1), FIND_RETRY_MS)
+          cleanup = () => clearTimeout(retry)
+        }
+        return
+      }
+
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+
+      const update = () => setRect(el.getBoundingClientRect())
+      const t = setTimeout(update, 320) // let the scroll settle first
+      window.addEventListener('resize', update)
+      window.addEventListener('scroll', update, true)
+      cleanup = () => {
+        clearTimeout(t)
+        window.removeEventListener('resize', update)
+        window.removeEventListener('scroll', update, true)
+      }
+    }
+
+    attach()
     return () => {
-      clearTimeout(t)
-      window.removeEventListener('resize', update)
-      window.removeEventListener('scroll', update, true)
+      cancelled = true
+      cleanup?.()
     }
   }, [id])
 
@@ -40,11 +70,16 @@ export function CoachTour({
   steps,
   open,
   onFinish,
+  onClose,
 }: {
   steps: TourStep[]
   open: boolean
+  /** Ran to the end (or tapped the backdrop) — the caller may follow up. */
   onFinish: () => void
+  /** Dismissed via the cross. Defaults to onFinish when not supplied. */
+  onClose?: () => void
 }) {
+  const dismiss = onClose ?? onFinish
   const [index, setIndex] = useState(0)
   useEffect(() => {
     if (open) setIndex(0)
@@ -87,7 +122,7 @@ export function CoachTour({
         <rect width="100%" height="100%" fill="rgba(10,10,10,0.72)" mask="url(#tour-mask)" />
       </svg>
 
-      <div className="absolute inset-0" onClick={onFinish} />
+      <div className="absolute inset-0" onClick={dismiss} />
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -106,7 +141,18 @@ export function CoachTour({
           className="rounded-[18px] bg-white p-5 shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          <h3 className="text-[15px] font-extrabold text-ink">{step.title}</h3>
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-[15px] font-extrabold text-ink">{step.title}</h3>
+            <button
+              type="button"
+              onClick={dismiss}
+              aria-label="Skip the walkthrough"
+              title="Skip the walkthrough"
+              className="-mr-1.5 -mt-1.5 grid size-7 shrink-0 place-items-center rounded-full text-black/40 transition-colors hover:bg-black/5 hover:text-ink"
+            >
+              <X size={15} strokeWidth={2.5} />
+            </button>
+          </div>
           <p className="mt-1.5 text-[13px] font-medium leading-relaxed text-muted">
             {step.description}
           </p>

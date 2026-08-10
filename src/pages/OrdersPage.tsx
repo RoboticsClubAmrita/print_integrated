@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { hardwareService, jobService, userService } from '../services/api';
 import {
     ArrowRightCircle,
@@ -23,6 +23,9 @@ import {
     fmtDateTime,
     inr,
 } from '../components/admin/ui';
+import { DateRangeFilter } from '../components/admin/DateRangeFilter';
+import { ExportMenu } from '../components/admin/ExportMenu';
+import { stampedName, type ExportColumn } from '../utils/tableExport';
 
 const STATUS_OPTIONS = ['ALL', 'PENDING', 'SCHEDULED', 'QUEUED', 'PRINTING', 'COMPLETED', 'PRINTED_PENDING_STACK', 'COLLECTED', 'CANCELLED'];
 
@@ -238,46 +241,86 @@ const OrdersPage: React.FC = () => {
     const configLine = (j: any) =>
         `${j.pageType || 'A4'} · ${j.colorMode === 'COLOR' ? 'COLOUR' : 'B&W'} · ${j.printSide === 'DOUBLE' ? '2-SIDE' : '1-SIDE'} · ${j.copies || 1}×`;
 
+    /**
+     * The downloadable ledger. The `Config` cell is one dense string on screen
+     * because the column is narrow; a spreadsheet has room, so paper/colour/
+     * sides/copies each get a column you can sort and pivot on.
+     *
+     * Rebuilt when `users`/`locations` arrive, since the name lookups close
+     * over them — a stale closure here would export bare UUIDs.
+     */
+    const exportColumns: ExportColumn<any>[] = useMemo(() => [
+        { header: 'Reference', value: (j) => j.referenceId || j._id || '', width: 18 },
+        { header: 'File', value: (j) => j.originalName || '', width: 32 },
+        { header: 'User', value: (j) => getUserName(j.userId), width: 24 },
+        { header: 'Location', value: (j) => getLocationName(j.locationId), width: 22 },
+        { header: 'Paper', value: (j) => j.pageType || 'A4', width: 9 },
+        { header: 'Colour', value: (j) => (j.colorMode === 'COLOR' ? 'Colour' : 'B&W'), width: 10 },
+        { header: 'Sides', value: (j) => (j.printSide === 'DOUBLE' ? 'Double' : 'Single'), width: 9 },
+        { header: 'Copies', value: (j) => Number(j.copies) || 1, width: 8 },
+        { header: 'Pages', value: (j) => Number(j.totalPagesToPrint) || 0, width: 8 },
+        { header: 'Cost (INR)', value: (j) => Number(j.totalCost) || 0, width: 13, money: true },
+        { header: 'Status', value: (j) => (j.status || 'PENDING').replace(/_/g, ' '), width: 20 },
+        { header: 'Placed', value: (j) => (j.createdAt ? fmtDateTime(j.createdAt) : ''), width: 20 },
+        { header: 'Collected', value: (j) => (j.collectedAt ? fmtDateTime(j.collectedAt) : ''), width: 20 },
+        { header: 'Failure reason', value: (j) => j.failureReason || '', width: 28 },
+    ], [users, locations]);
+
     return (
         <>
             <PageHeader
                 title="Orders"
                 meta={`${filteredJobs.length} ${filteredJobs.length === 1 ? 'ORDER' : 'ORDERS'} · ${inr(totalRevenue)} ON THE BOOKS`}
                 actions={
-                    <button onClick={loadInitialData} disabled={loading} className="btn-ghost">
-                        <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-                        Refresh
-                    </button>
+                    <>
+                        <button onClick={loadInitialData} disabled={loading} className="btn-ghost">
+                            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+                            Refresh
+                        </button>
+                        {/* `filteredJobs` is the same array the table renders, so a
+                            download always carries exactly the filters on screen. */}
+                        <ExportMenu
+                            columns={exportColumns}
+                            rows={filteredJobs}
+                            filename={stampedName('printease-orders')}
+                            sheetName="Orders"
+                            disabled={loading}
+                        />
+                    </>
                 }
             />
 
             <div className="space-y-5">
                 {/* Toolbar — filters as a workbench strip, not a card of cards. */}
-                <div className="panel flex flex-wrap items-center gap-2.5 px-3.5 py-3">
-                    <div className="relative min-w-[220px] flex-1">
+                <div className="panel filter-bar px-3.5 py-3">
+                    <div className="ctl--grow relative">
                         <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted" />
                         <input
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             placeholder="Search reference or file…"
-                            className="ctl !pl-10"
+                            className="ctl !w-full !pl-10"
                         />
                     </div>
-                    <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="ctl w-auto min-w-[130px] flex-none pr-8">
+                    <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="ctl" aria-label="Status">
                         {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s === 'ALL' ? 'All statuses' : s.replace(/_/g, ' ')}</option>)}
                     </select>
-                    <select value={userFilter} onChange={e => setUserFilter(e.target.value)} className="ctl w-auto min-w-[130px] max-w-[180px] flex-none pr-8">
+                    <select value={userFilter} onChange={e => setUserFilter(e.target.value)} className="ctl" aria-label="User">
                         <option value="ALL">All users</option>
                         {users.map(u => <option key={u._id} value={u._id}>{u.name || u.email}</option>)}
                     </select>
-                    <select value={locationFilter} onChange={e => setLocationFilter(e.target.value)} className="ctl w-auto min-w-[130px] max-w-[180px] flex-none pr-8">
+                    <select value={locationFilter} onChange={e => setLocationFilter(e.target.value)} className="ctl" aria-label="Location">
                         <option value="ALL">All locations</option>
                         {locations.map(l => <option key={l._id} value={l._id}>{l.name}</option>)}
                     </select>
-                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="ctl w-auto flex-none" aria-label="From date" />
-                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="ctl w-auto flex-none" aria-label="To date" />
+                    <DateRangeFilter
+                        from={dateFrom}
+                        to={dateTo}
+                        onFromChange={setDateFrom}
+                        onToChange={setDateTo}
+                    />
                     {hasActiveFilters && (
-                        <button onClick={clearFilters} className="btn-ghost flex-none !px-3" title="Clear all filters">
+                        <button onClick={clearFilters} className="btn-ghost !px-3" title="Clear all filters">
                             <X size={14} /> Clear
                         </button>
                     )}

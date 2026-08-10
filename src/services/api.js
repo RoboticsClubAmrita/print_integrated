@@ -1,4 +1,11 @@
 import axios from 'axios';
+import {
+    clearStoredSession,
+    getToken,
+    isPersistent,
+    setStoredUser,
+    setToken,
+} from './tokenStore';
 
 // Always call the API through a relative /api path so the request is proxied by
 // whatever is in front of us: the Vite dev proxy (-> http://localhost:5000, see
@@ -89,7 +96,7 @@ const api = axios.create({
 
 // ── Axios interceptor: attach the access token to every request ──
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
@@ -101,19 +108,18 @@ api.interceptors.request.use((config) => {
 let refreshPromise = null;
 
 function clearSession() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearStoredSession();
     window.dispatchEvent(new Event('auth:sessionExpired'));
 }
 
 async function refreshAccessToken() {
     if (!refreshPromise) {
         refreshPromise = api
-            .post(refreshAPI)
+            .post(refreshAPI, { rememberMe: isPersistent() })
             .then((res) => {
                 const token = res.data?.accessToken || res.data?.token;
                 if (!token) throw new Error('No access token in refresh response');
-                localStorage.setItem('token', token);
+                setToken(token);
                 return token;
             })
             .catch((err) => {
@@ -156,10 +162,10 @@ export const authService = {
         const data = response.data;
         const token = data?.accessToken || data?.token;
         if (token) {
-            localStorage.setItem('token', token);
+            setToken(token);
         }
         if (data?.user) {
-            localStorage.setItem('user', JSON.stringify(data.user));
+            setStoredUser(JSON.stringify(data.user));
         }
         return data;
     },
@@ -188,8 +194,8 @@ export const authService = {
         const response = await api.post(registerVerifyAPI, { collegeId, email, otp });
         const data = response.data;
         const token = data?.accessToken || data?.token;
-        if (token) localStorage.setItem('token', token);
-        if (data?.user) localStorage.setItem('user', JSON.stringify(data.user));
+        if (token) setToken(token);
+        if (data?.user) setStoredUser(JSON.stringify(data.user));
         return data;
     },
     registerResend: async ({ collegeId, email }) => {

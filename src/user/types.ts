@@ -100,7 +100,10 @@ export interface Session {
 
 export interface Prefs {
   rememberedEmail: string | null
+  /** Legacy device-wide walkthrough flag. Superseded by `tourSeenUserIds`. */
   tourSeen: boolean
+  /** Accounts that have already had their one first-run walkthrough. */
+  tourSeenUserIds: string[]
   lastSeenNotificationsAt: string | null // ISO 8601
 }
 

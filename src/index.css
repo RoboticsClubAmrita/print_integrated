@@ -539,11 +539,93 @@
   border-radius: 10px;
   font-size: 13.5px;
   color: var(--color-text);
-  background: rgb(255 255 255 / 0.04);
+  /* background-color, never the shorthand: `.admin-scope .ctl` outranks
+     `.admin-scope select`, so a shorthand here silently erases the select
+     chevron drawn further down. */
+  background-color: rgb(255 255 255 / 0.04);
   border: 1px solid rgb(255 255 255 / 0.09);
 }
 
+/* Same specificity story for the chevron's gutter. */
+.admin-scope select.ctl {
+  padding-right: 30px;
+}
+
 .admin-scope textarea.ctl { height: auto; padding: 10px 12px; }
+
+/* ————— Filter bar —————
+   One rail, one row. Every filter on a register sits on this strip, so it
+   reads as a single instrument panel rather than a stack of lonely fields.
+
+   `.ctl` is width:100% because its home is a stacked form Field. On the rail
+   a control is sized by its slot instead, and `.admin-scope .ctl` outranks a
+   Tailwind `w-auto` on specificity — so the opt-out lives here, once, rather
+   than as an `!important` at every call site. */
+
+.admin-scope .filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-scope .filter-bar .ctl {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+/* The search field is the one control that takes the slack. */
+.admin-scope .filter-bar .ctl--grow {
+  flex: 1 1 180px;
+  min-width: 160px;
+  width: auto;
+}
+
+/* Selects hold a slot wide enough for their longest option, capped so one
+   long name (an email, a location) cannot push the rail onto a second row. */
+.admin-scope .filter-bar select.ctl {
+  min-width: 132px;
+  max-width: 156px;
+}
+
+/* A filter that opens a popover instead of editing in place. Wears the same
+   chrome as .ctl so the rail reads as one row of like things. */
+.admin-scope .filter-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  max-width: 178px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  color: rgb(244 244 246 / 0.72);
+  background: rgb(255 255 255 / 0.04);
+  border: 1px solid rgb(255 255 255 / 0.09);
+  transition:
+    border-color 0.2s var(--ease-out-quart),
+    background 0.2s var(--ease-out-quart),
+    color 0.2s var(--ease-out-quart);
+}
+
+.admin-scope .filter-trigger:hover {
+  background: rgb(255 255 255 / 0.07);
+  border-color: rgb(255 255 255 / 0.16);
+  color: #ffffff;
+}
+
+.admin-scope .filter-trigger:focus-visible {
+  border-color: rgb(52 199 89 / 0.55);
+  box-shadow: 0 0 0 3px rgb(52 199 89 / 0.12);
+  outline: none;
+}
+
+/* A filter holding a value states so without being read. */
+.admin-scope .filter-trigger--on {
+  color: #ffffff;
+  border-color: rgb(52 199 89 / 0.4);
+  background: rgb(52 199 89 / 0.1);
+}
 
 .admin-scope .f-label {
   display: block;
@@ -561,7 +643,9 @@
 .admin-scope input[type="date"],
 .admin-scope select,
 .admin-scope textarea {
-  background: rgb(255 255 255 / 0.04);
+  /* background-color, not the shorthand: select draws its chevron as a
+     background-image below, and a shorthand here would erase it. */
+  background-color: rgb(255 255 255 / 0.04);
   border-color: rgb(255 255 255 / 0.09);
   color: var(--color-text);
   transition:
@@ -581,7 +665,7 @@
   border-color: rgb(52 199 89 / 0.55);
   box-shadow: 0 0 0 3px rgb(52 199 89 / 0.12);
   outline: none;
-  background: rgb(255 255 255 / 0.06);
+  background-color: rgb(255 255 255 / 0.06);
 }
 
 .admin-scope input[type="date"] { color-scheme: dark; }
@@ -590,6 +674,13 @@
   color-scheme: dark;
   appearance: none;
   cursor: pointer;
+  /* appearance:none strips the native arrow; draw it back, or a select is
+     indistinguishable from a static label. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f4f4f6' stroke-opacity='0.45' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 11px;
+  padding-right: 30px;
 }
 
 .admin-scope select option {

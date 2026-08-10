@@ -12,6 +12,7 @@ import {
   authService as realAuth,
   userService as realUsers,
 } from '../../services/api'
+import { setPersistence } from '../../services/tokenStore'
 
 const INVALID_OTP = 'Invalid code. Try again.'
 
@@ -26,8 +27,11 @@ export async function login(
   remember: boolean,
 ): Promise<string | null> {
   if (!email.trim() || !password) return MSG.loginEmpty
+  // Decide where the session will live *before* the call that writes it:
+  // realAuth.login persists the token as soon as it returns.
+  setPersistence(remember)
   try {
-    const data = await realAuth.login({ email, password })
+    const data = await realAuth.login({ email, password, rememberMe: remember })
     const token = data?.accessToken || data?.token
     if (!token || !data?.user) return 'Incorrect email or password.'
     const session = {
@@ -78,6 +82,7 @@ export async function resendVerification(collegeId: string): Promise<string | nu
 
 /** Verifies the signup OTP; on success the backend creates the account and logs the user in. */
 export async function verifyEmail(collegeId: string, otp: string): Promise<string | null> {
+  setPersistence(true) // signup has no checkbox; a new account stays signed in
   try {
     const data = await realAuth.registerVerify({ collegeId, otp })
     const token = data?.accessToken || data?.token

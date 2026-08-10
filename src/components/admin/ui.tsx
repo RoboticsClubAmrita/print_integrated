@@ -1,6 +1,6 @@
 import React from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { X } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
 import { clsx } from 'clsx';
 
 /**
@@ -287,6 +287,71 @@ export function SlideOver({
                 <div className="px-6 py-5">{children}</div>
             </aside>
         </>
+    );
+}
+
+/* ————— failure ————— */
+
+/**
+ * The server's own words about why a write was refused.
+ *
+ * Every rejection from the API carries a `MESSAGE` explaining itself
+ * ("College ID is required", "User already exists"). Swallowing that into
+ * `console.error` is what makes a form look broken rather than wrong, so
+ * every admin mutation funnels its failures through here.
+ */
+export function apiError(
+    e: unknown,
+    fallback = 'Something went wrong. Please try again.',
+): string {
+    const err = e as {
+        isAxiosError?: boolean;
+        response?: { status?: number; data?: { MESSAGE?: unknown } };
+    };
+
+    const message = err?.response?.data?.MESSAGE;
+    if (typeof message === 'string' && message.trim()) return message;
+
+    // An axios error that never got a response never reached the server. The
+    // error code differs by environment (ERR_NETWORK in a browser,
+    // ECONNREFUSED under Node), so test for the missing response instead.
+    if (err?.isAxiosError && !err.response) {
+        return 'Cannot reach the server. Check that the backend is running.';
+    }
+    if (err?.response?.status === 401) return 'Your session has expired. Sign in again.';
+    if (err?.response?.status === 403) return 'You do not have permission to do that.';
+
+    return fallback;
+}
+
+/** Inline failure note — loud enough to catch, quiet enough to sit in a form. */
+export function ErrorNote({
+    children,
+    onDismiss,
+}: {
+    children: React.ReactNode;
+    onDismiss?: () => void;
+}) {
+    return (
+        <div
+            role="alert"
+            className="flex items-start gap-2.5 rounded-[11px] border border-[#ff453a]/25 bg-[#ff453a]/10 px-3.5 py-2.5"
+        >
+            <AlertTriangle size={15} className="mt-px shrink-0 text-[#ff8d85]" />
+            <p className="min-w-0 flex-1 text-[12.5px] leading-relaxed text-[#ffb3ad]">
+                {children}
+            </p>
+            {onDismiss && (
+                <button
+                    type="button"
+                    onClick={onDismiss}
+                    aria-label="Dismiss"
+                    className="icon-btn -mr-1 -mt-0.5 !size-6 shrink-0"
+                >
+                    <X size={13} />
+                </button>
+            )}
+        </div>
     );
 }
 

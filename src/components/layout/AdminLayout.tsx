@@ -5,10 +5,14 @@ import { ProfileModeSwitch } from '@/components/app/ProfileModeSwitch';
 import AdminSidebar from './AdminSidebar';
 
 /**
- * The Press Room shell. One 1180px frame carries everything: the glass
+ * The Press Room shell. One full-bleed frame carries everything: the glass
  * header (whose grid mirrors the storefront header exactly, so the mode
  * capsule lands in the pixel-identical top-right spot in both modes),
  * the floating nav dock, and the work surface beside it.
+ *
+ * The frame runs the full viewport width rather than a reading-width column:
+ * the registers here are wide operational tables, and every pixel the frame
+ * gives back is a column the operator does not have to scroll sideways for.
  *
  * The dock is a sticky glass island inside the same frame — never a
  * full-height wall — so the room's backdrop stays visible around the
@@ -42,7 +46,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <div className="relative z-[1] min-h-screen text-text">
             {/* Header — the same grid as the storefront header, in glass. */}
             <header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-white/8 bg-[#0d0d11]/70 shadow-[inset_0_1px_0_rgb(255_255_255_/_0.06)] backdrop-blur-2xl">
-                <div className="mx-auto flex h-full max-w-[1180px] items-center justify-between px-4 sm:px-6">
+                <div className="flex h-full w-full items-center justify-between px-4 sm:px-6 lg:px-8">
                     <span className="inline-flex select-none items-center gap-2.5">
                         <AppIcon size={34} />
                         <span className="text-[19px] font-extrabold leading-none tracking-[-0.4px] text-white">
@@ -60,7 +64,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </header>
 
             {/* Workspace — dock + work surface in the header's frame. */}
-            <div className="mx-auto flex max-w-[1180px] items-start gap-5 px-4 pt-[88px] pb-16 sm:px-6 lg:gap-7">
+            <div className="flex w-full items-start gap-5 px-4 pt-[88px] pb-16 sm:px-6 lg:gap-7 lg:px-8">
                 <AdminSidebar collapsed={collapsed} onToggle={toggle} />
                 <main key={location.pathname} className="page-enter min-w-0 flex-1">
                     {children}
