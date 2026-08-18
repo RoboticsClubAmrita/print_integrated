@@ -1,22 +1,28 @@
 /**
  * Payment flows: per-order, pay-all-due (sequential), and outstanding dues.
- * Skips the Razorpay gateway entirely — the backend's mark-paid endpoints
- * apply the exact same job/penalty/balance effects a verified payment
- * would, so state stays in sync with the admin console either way.
+ *
+ * Every one of them goes through Razorpay. The amount is decided by the
+ * backend from the job it priced, and a payment only counts once the backend
+ * has verified the gateway's signature — there is no path from this app that
+ * marks anything paid without money moving. (`/payments/mark-paid` still
+ * exists for cash handed over at the counter, but it is admin-only and this
+ * app never calls it.)
  */
 import type { Order } from '@/types'
 import { orderCost } from '@/lib/orders'
 import { outstandingDues, useAppStore } from '@/store/appStore'
-import { paymentService as realPayments } from '../../services/api'
+import { payDues, payForJob } from '@/services/razorpay'
 import { apiErrorMessage } from '@/lib/apiError'
 import { flushPending, getPending } from '@/services/pendingUploads'
 
-async function markJobPaid(order: Order): Promise<void> {
-  try {
-    await realPayments.markPaid(order.jobId)
-  } catch (err) {
-    throw new Error(apiErrorMessage(err, 'Payment failed'))
-  }
+/** Settles one job through the gateway. Throws PaymentError if it doesn't. */
+async function settle(order: Order): Promise<void> {
+  const user = useAppStore.getState().user
+  await payForJob(order.jobId, {
+    name: user?.name,
+    email: user?.email,
+    phone: user?.phone,
+  })
 }
 
 /**
@@ -46,22 +52,32 @@ async function deliverDocumentFor(order: Order): Promise<string | null> {
  * @returns a note when the document could not be delivered, else null.
  */
 export async function payOrder(order: Order): Promise<string | null> {
-  await markJobPaid(order)
+  await settle(order)
   const note = await deliverDocumentFor(order)
   await useAppStore.getState().refresh()
   return note
 }
 
-/** Billing "Pay Now": marks every payable (PENDING) order paid. Returns the total amount cleared. */
+/**
+ * Billing "Pay Now": settles every payable (PENDING) order, one checkout each.
+ *
+ * Sequential and deliberately not atomic — each order is its own Razorpay
+ * payment. If the user abandons one, everything already paid stays paid and
+ * the rest are left for next time, so the amount returned is what actually
+ * cleared rather than what was owed.
+ */
 export async function payAllDue(): Promise<number> {
   const pending = useAppStore.getState().orders.filter((o) => o.status === 'PENDING')
   let cleared = 0
-  for (const order of pending) {
-    await markJobPaid(order)
-    await deliverDocumentFor(order)
-    cleared += orderCost(order)
+  try {
+    for (const order of pending) {
+      await settle(order)
+      await deliverDocumentFor(order)
+      cleared += orderCost(order)
+    }
+  } finally {
+    await useAppStore.getState().refresh()
   }
-  await useAppStore.getState().refresh()
   return cleared
 }
 
@@ -71,11 +87,11 @@ export async function payOutstandingDues(): Promise<number> {
   if (!state.user) throw new Error('Not signed in')
   const amount = outstandingDues(state.penalties)
   if (amount <= 0) return 0
-  try {
-    await realPayments.markDuesPaid(state.user.id)
-  } catch (err) {
-    throw new Error(apiErrorMessage(err, 'Payment failed'))
-  }
+  await payDues(state.user.id, {
+    name: state.user.name,
+    email: state.user.email,
+    phone: state.user.phone,
+  })
   await useAppStore.getState().refresh()
   return amount
 }

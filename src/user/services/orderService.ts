@@ -8,7 +8,8 @@
  *   2. upload   — hand over the PDF. The server counts its pages itself and
  *      that count, not ours, is what the order gets priced on.
  *   3. create   — make the job, priced from the server's count.
- *   4. pay      — settle it, against a total the server calculated.
+ *   4. pay      — Razorpay checkout, against a total the server calculated.
+ *                 Nothing here can mark an order paid on its own.
  *
  * Nothing is charged until the document is on the server and counted, so the
  * amount the user is asked to pay always matches the document that will
@@ -18,7 +19,8 @@
 import type { Order, PrintSide } from '@/types'
 import { jobToOrder } from '@/lib/adapters'
 import { useAppStore } from '@/store/appStore'
-import { jobService as realJobs, paymentService as realPayments, fileService as realFiles } from '../../services/api'
+import { jobService as realJobs, fileService as realFiles } from '../../services/api'
+import { payForJob, PaymentError } from '@/services/razorpay'
 import { apiErrorMessage } from '@/lib/apiError'
 import { attachJob, dropPending, putPending } from '@/services/pendingUploads'
 
@@ -145,29 +147,34 @@ export async function placeOrder(input: NewOrderInput): Promise<PlacedOrder> {
   if (!jobId) throw new Error('Could not place the order.')
   await attachJob(fileId, jobId).catch(() => {})
 
-  // ── 4. Settle the job, against the server's own total.
+  // ── 4. Settle the job through Razorpay, against the server's own total.
+  //
+  // Checkout is the only way an order becomes paid. Declining or closing it
+  // leaves a real, unpaid order the user can settle later from Billing — the
+  // document is already on the server, so nothing is lost — rather than
+  // failing the whole placement.
   let paymentConfirmed = true
+  let paymentNote: string | null = null
   try {
-    await realPayments.markPaid(jobId)
-  } catch (first) {
-    try {
-      await realPayments.markPaid(jobId)
-    } catch (second) {
-      paymentConfirmed = false
-      console.error('[placeOrder] could not mark job paid', { jobId, first, second })
-    }
+    await payForJob(jobId, { name: user.name, email: user.email, phone: user.phone })
+  } catch (err) {
+    paymentConfirmed = false
+    paymentNote =
+      err instanceof PaymentError
+        ? err.message
+        : 'The payment did not go through. Your order is saved — pay for it from Billing.'
   }
 
-  // The document is already delivered, so the only thing left to say is
-  // whether the price moved off our estimate.
+  // The document is already delivered, so what is left to say is whether the
+  // price moved off our estimate, and whether payment actually happened.
   const documentUploaded = true
   let uploadNote: string | null = null
   if (pagesCorrected) {
     uploadNote =
       `This document has ${serverPages} page${serverPages === 1 ? '' : 's'} — ` +
       `your total was recalculated to match it.`
-  } else if (!paymentConfirmed) {
-    uploadNote = 'Your document is safe with us, but the payment did not go through.'
+  } else if (paymentNote) {
+    uploadNote = paymentNote
   }
 
   const jobRes = await realJobs.getById(jobId)
