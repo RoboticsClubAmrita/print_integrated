@@ -33,7 +33,7 @@ export async function login(
   try {
     const data = await realAuth.login({ email, password, rememberMe: remember })
     const token = data?.accessToken || data?.token
-    if (!token || !data?.user) return 'Incorrect email or password.'
+    if (!token || !data?.user) return 'Incorrect college ID or password.'
     const session = {
       userId: data.user._id,
       token,
@@ -44,7 +44,7 @@ export async function login(
     useAppStore.getState().setSession(session)
     return null
   } catch (err) {
-    return apiErrorMessage(err, 'Incorrect email or password.')
+    return apiErrorMessage(err, 'Incorrect college ID or password.')
   }
 }
 

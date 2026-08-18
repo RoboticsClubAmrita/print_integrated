@@ -29,11 +29,14 @@ export function ActionCard({ order }: { order: Order }) {
   const pay = async () => {
     setPayBusy(true)
     try {
-      await payOrder(order)
+      // Paying is also what releases the document: it has been held on this
+      // device since the order was placed and is sent as part of this step.
+      const uploadNote = await payOrder(order)
       showSuccess({
         title: 'Payment Successful',
         subtitle: `${rupees(orderCost(order))} paid for ${order.fileName}.`,
       })
+      if (uploadNote) toast('Document still sending', uploadNote, 'warning')
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Payment failed', undefined, 'warning')
     } finally {

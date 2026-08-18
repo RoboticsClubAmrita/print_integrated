@@ -13,6 +13,9 @@ export interface TourStep {
 
 const PAD = 8
 
+/** How long to track a step's target while the page scrolls to it. */
+const SCROLL_FOLLOW_MS = 900
+
 /** How long to keep looking for a step's target before giving up (~1s). */
 const FIND_ATTEMPTS = 20
 const FIND_RETRY_MS = 50
@@ -21,8 +24,14 @@ function useTargetRect(id: string | null) {
   const [rect, setRect] = useState<DOMRect | null>(null)
 
   useLayoutEffect(() => {
-    setRect(null)
-    if (!id) return
+    // The previous step's rect is deliberately kept while the next target is
+    // located and scrolled to. Clearing it first left the mask with no cutout
+    // at all, so every step change flashed the whole page black and dropped
+    // the tooltip to a default position before snapping into place.
+    if (!id) {
+      setRect(null)
+      return
+    }
 
     let cancelled = false
     let cleanup: (() => void) | undefined
@@ -43,14 +52,26 @@ function useTargetRect(id: string | null) {
         return
       }
 
+      const update = () => setRect(el.getBoundingClientRect())
+
+      // Measure now so the spotlight moves onto the new target immediately,
+      // then keep measuring while the smooth scroll runs. A fixed timer was
+      // wrong in both directions: too early for a long scroll, and dead time
+      // when the target was already on screen.
+      update()
       el.scrollIntoView({ block: 'center', behavior: 'smooth' })
 
-      const update = () => setRect(el.getBoundingClientRect())
-      const t = setTimeout(update, 320) // let the scroll settle first
+      let frame = requestAnimationFrame(function follow() {
+        update()
+        frame = requestAnimationFrame(follow)
+      })
+      const settle = setTimeout(() => cancelAnimationFrame(frame), SCROLL_FOLLOW_MS)
+
       window.addEventListener('resize', update)
       window.addEventListener('scroll', update, true)
       cleanup = () => {
-        clearTimeout(t)
+        cancelAnimationFrame(frame)
+        clearTimeout(settle)
         window.removeEventListener('resize', update)
         window.removeEventListener('scroll', update, true)
       }
@@ -84,6 +105,16 @@ export function CoachTour({
   useEffect(() => {
     if (open) setIndex(0)
   }, [open])
+
+  // Escape still leaves, now that clicking the backdrop deliberately doesn't.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') dismiss()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, dismiss])
 
   const step = open ? steps[index] : null
   const rect = useTargetRect(step?.id ?? null)
@@ -122,7 +153,12 @@ export function CoachTour({
         <rect width="100%" height="100%" fill="rgba(10,10,10,0.72)" mask="url(#tour-mask)" />
       </svg>
 
-      <div className="absolute inset-0" onClick={dismiss} />
+      {/* Swallows clicks on the dimmed area without ending the walkthrough.
+          It used to call dismiss(), which meant any click landing outside the
+          card killed the tour silently — and because the card re-anchors to a
+          different element on every step, clicking "Next" twice in the same
+          place did exactly that. Skipping is the cross, or Escape. */}
+      <div className="absolute inset-0" onClick={(e) => e.stopPropagation()} />
 
       <AnimatePresence mode="wait">
         <motion.div

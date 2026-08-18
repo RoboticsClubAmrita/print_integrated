@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { Mail, Lock, ArrowRight, Check } from 'lucide-react'
+import { IdCard, Lock, ArrowRight, Check } from 'lucide-react'
 import { clsx } from 'clsx'
 import { AuthLayout } from '@/pages/auth/AuthLayout'
 import { Field } from '@/components/ui/Field'
@@ -62,14 +62,17 @@ export default function LoginPage() {
 
         {/* Fields */}
         <motion.div variants={fadeSlideChild} className="mt-5 flex flex-col gap-3.5">
+          {/* Plain text, not type="email": the backend matches this value
+              against either college_id or email, and browser email validation
+              would reject a roll number outright. */}
           <Field
-            label="Email"
-            type="email"
-            icon={Mail}
-            placeholder="you@example.com"
+            label="College ID"
+            type="text"
+            icon={IdCard}
+            placeholder="CB.SC.U4XXXXXX"
             value={email}
             onChange={setEmail}
-            autoComplete="email"
+            autoComplete="username"
           />
           <Field
             label="Password"
