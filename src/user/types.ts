@@ -41,6 +41,8 @@ export interface Order {
    * only on this device (order placed, payment not yet settled).
    */
   fileUrl: string | null
+  /** True while the document can actually be opened; drives the preview button. */
+  documentAvailable: boolean
   fileName: string
   fileSizeKb: number
   /** Pages to print per copy (length of selectedPages, or totalDocPages). */

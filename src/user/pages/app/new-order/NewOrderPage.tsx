@@ -114,8 +114,9 @@ export default function NewOrderPage() {
       // against a guess.
       if (error instanceof PageDetectionError) {
         toast(
-          'Uploading failed',
-          `Page detection failed — ${error.message.replace(/^page detection failed\s*/i, '') || 'this document could not be read'}. Try re-saving it as a PDF.`,
+          'Upload failed — page detection failed',
+          'We could not count the pages in this document, and we will not guess at a ' +
+            'number you would be charged for. Please upload a PDF instead.',
           'warning',
         )
       } else if (error instanceof DocumentPrepError) {
@@ -167,8 +168,9 @@ export default function NewOrderPage() {
           jobId: DEMO_JOB_ID,
           userId: user.id,
           // Nothing about the demo order exists server-side, so there is no
-          // document to fetch back — the viewer correctly reports as much.
+          // document to fetch back — the preview button stays disabled.
           fileId: null,
+          documentAvailable: false,
           fileUrl: null,
           fileName: stored.file.name,
           fileSizeKb: stored.sizeKb,
@@ -208,7 +210,7 @@ export default function NewOrderPage() {
         return
       }
 
-      const { order, paymentConfirmed, uploadNote } = await placeOrder({
+      const { order, paymentConfirmed, uploadNote, pagesCorrected } = await placeOrder({
         file: stored.file,
         fileName: stored.file.name,
         fileSizeKb: stored.sizeKb,
@@ -232,11 +234,12 @@ export default function NewOrderPage() {
       if (!paymentConfirmed) {
         toast('Payment could not be confirmed — settle this order from Billing.')
       }
-      // The document is sent after payment; if that hasn't landed yet the
-      // order is real and the bytes are safe locally, so say what's happening
-      // rather than implying the order failed.
+      // The document is counted by the server before anything is charged, so
+      // the only surprise left is a total that differs from the estimate shown
+      // on this page. Say so plainly rather than letting the amount change
+      // silently.
       if (uploadNote) {
-        toast('Document still sending', uploadNote, 'warning')
+        toast(pagesCorrected ? 'Total updated' : 'Payment not confirmed', uploadNote, 'warning')
       }
       navigate(`/app/orders/${order.id}`)
     } catch (error) {

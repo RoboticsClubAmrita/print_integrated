@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { FileText, Image, UploadCloud, X, CheckCircle2 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { motion } from 'motion/react'
-import { ACCEPT_ATTR, isAccepted, type StoredFile } from '@/services/fileService'
+import { ACCEPT_ATTR, ACCEPTED_LABEL, isAccepted, type StoredFile } from '@/services/fileService'
 import { toast } from '@/store/uiStore'
 import { EASE } from '@/lib/motion'
 
@@ -32,7 +32,7 @@ export function FileDropZone({
   const accept = (file: File | undefined) => {
     if (!file) return
     if (!isAccepted(file.name)) {
-      toast('Unsupported file type', 'Choose a PDF, JPG or PNG file. Save Word or PowerPoint documents as PDF first.', 'warning')
+      toast('Unsupported file type', `Choose one of: ${ACCEPTED_LABEL}. Save Word or PowerPoint documents as PDF first.`, 'warning')
       return
     }
     onFile(file)
@@ -115,7 +115,7 @@ export function FileDropZone({
         {dragging ? 'Release to upload' : 'Drop a file here, or tap to upload'}
       </p>
       <p className="mt-1 text-[12.5px] font-medium text-muted">
-        PDF, JPG or PNG · converted to PDF and counted on this device
+        {ACCEPTED_LABEL} · converted to PDF and counted on this device
       </p>
       <input
         ref={inputRef}

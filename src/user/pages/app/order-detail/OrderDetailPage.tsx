@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { clsx } from 'clsx'
 import { ArrowLeft, Eye, FileText, SearchX } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { DocumentViewer } from '@/components/app/DocumentViewer'
@@ -85,16 +86,32 @@ export default function OrderDetailPage() {
                     </span>
                   ),
                 )}
-                {order.fileId && (
-                  <button
-                    type="button"
-                    onClick={() => setViewerOpen(true)}
-                    className="press ml-auto flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[11.5px] font-bold text-white"
-                  >
-                    <Eye size={13} strokeWidth={2.2} aria-hidden />
-                    View document
-                  </button>
-                )}
+                {/* Always shown, so the preview is a visible part of an order
+                    rather than something that quietly disappears. It is
+                    disabled — with the reason on hover — once the document is
+                    no longer readable: 24 hours after collection it is deleted
+                    for good. */}
+                <button
+                  type="button"
+                  disabled={!order.documentAvailable}
+                  title={
+                    order.documentAvailable
+                      ? 'Open this order\u2019s document'
+                      : order.fileId
+                        ? 'This document has been deleted — documents are kept until 24 hours after collection'
+                        : 'There is no document on this order'
+                  }
+                  onClick={() => setViewerOpen(true)}
+                  className={clsx(
+                    'ml-auto flex items-center gap-1.5 rounded-full px-3 py-1 text-[11.5px] font-bold',
+                    order.documentAvailable
+                      ? 'press bg-ink text-white'
+                      : 'cursor-not-allowed bg-chip text-muted',
+                  )}
+                >
+                  <Eye size={13} strokeWidth={2.2} aria-hidden />
+                  View document
+                </button>
               </div>
             }
           />

@@ -19,24 +19,35 @@
  * the user has already been charged for.
  */
 import { PDFDocument } from 'pdf-lib'
+import { appendWordDocumentToPdf, WordDocumentError } from '@/services/wordDocument'
 import { fileExt } from '@/lib/format'
 import { uid } from '@/services/db'
 import { countPdfPages } from '@/services/pdf'
 
 /**
- * What the picker offers. Word/PowerPoint/Excel are deliberately absent: a
- * faithful client-side conversion of those formats isn't something a browser
- * can do, and an unfaithful one would mean the printout doesn't match the
- * preview and the page count is wrong. Users export to PDF first — every
- * office suite has "Save as PDF" — and get an exact preview and price.
+ * What the picker offers.
+ *
+ * Word documents are re-laid-out here (see `wordDocument.ts`) rather than
+ * reproducing Word's own pagination, which depends on fonts and layout rules
+ * the file doesn't carry. The PDF built here is what gets previewed, counted,
+ * priced and printed, so those can't disagree — but it will not look
+ * identical to the same file opened in Word. Exporting to PDF from Word first
+ * takes one click and is exact.
  */
-export const ACCEPTED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png'] as const
+export const ACCEPTED_EXTENSIONS = ['pdf', 'docx', 'jpg', 'jpeg', 'png'] as const
 export const ACCEPT_ATTR = ACCEPTED_EXTENSIONS.map((e) => `.${e}`).join(',')
+
+/**
+ * What to show the user as the accepted formats. Derived from the list above
+ * rather than written out, so the text on screen can never drift from the
+ * list actually enforced by `isAccepted` and the file input.
+ */
+export const ACCEPTED_LABEL = ACCEPTED_EXTENSIONS.map((e) => e.toUpperCase()).join(' · ')
 
 /** Formats we recognise but cannot convert in the browser, with what to do instead. */
 const CONVERT_YOURSELF: Record<string, string> = {
-  doc: 'Word',
-  docx: 'Word',
+  // .doc is the pre-2007 binary format; .docx is handled directly.
+  doc: 'legacy Word',
   ppt: 'PowerPoint',
   pptx: 'PowerPoint',
   xls: 'Excel',
@@ -86,6 +97,11 @@ export function kindOf(fileName: string): FileKind {
   return fileExt(fileName) === 'pdf' ? 'pdf' : 'image'
 }
 
+/** True for formats this device turns into PDF pages itself. */
+export function isWordDocument(fileName: string): boolean {
+  return fileExt(fileName) === 'docx'
+}
+
 /** Lowercase hex sha256, computed in the browser with WebCrypto. */
 export async function sha256Hex(data: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', data)
@@ -126,6 +142,19 @@ export async function mergeFilesIntoPdf(files: File[]): Promise<File> {
       continue
     }
 
+    if (extension === 'docx') {
+      try {
+        await appendWordDocumentToPdf(mergedPdf, fileBytes, file.name)
+      } catch (error) {
+        throw new DocumentPrepError(
+          error instanceof WordDocumentError
+            ? error.message
+            : `${file.name} could not be converted to a printable PDF.`,
+        )
+      }
+      continue
+    }
+
     if (extension === 'jpg' || extension === 'jpeg' || extension === 'png') {
       const image =
         extension === 'png'
@@ -142,7 +171,7 @@ export async function mergeFilesIntoPdf(files: File[]): Promise<File> {
     throw new DocumentPrepError(
       label
         ? `${file.name} is a ${label} document. Save it as a PDF first — that way the preview, the page count and the printout all match exactly.`
-        : `${file.name} is not a supported file type. Upload a PDF, JPG or PNG.`,
+        : `${file.name} is not a supported file type. Upload one of: ${ACCEPTED_LABEL}.`,
     )
   }
 

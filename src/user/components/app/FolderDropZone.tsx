@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { FileText, FolderOpen, UploadCloud, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { motion } from 'motion/react'
-import { ACCEPT_ATTR, isAccepted } from '@/services/fileService'
+import { ACCEPT_ATTR, ACCEPTED_LABEL, isAccepted } from '@/services/fileService'
 import { toast } from '@/store/uiStore'
 import { EASE } from '@/lib/motion'
 
@@ -52,7 +52,7 @@ export function FolderDropZone({
     if (supportedFiles.length === 0) {
       toast(
         'No supported files',
-        'Choose PDF, JPG or PNG files. Save Word or PowerPoint documents as PDF first.',
+        `Choose from: ${ACCEPTED_LABEL}. Save Word or PowerPoint documents as PDF first.`,
         'warning',
       )
       return
@@ -251,7 +251,7 @@ export function FolderDropZone({
       </p>
 
       <p className="mt-1 text-[12.5px] font-medium text-muted">
-        PDF, JPG or PNG · merged into one PDF on this device
+        {ACCEPTED_LABEL} · merged into one PDF on this device
       </p>
 
       <p className="mt-2 text-[11.5px] font-medium text-muted">

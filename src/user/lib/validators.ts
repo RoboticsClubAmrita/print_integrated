@@ -36,7 +36,7 @@ export function filterPhoneInput(value: string): string {
 
 /** Exact user-facing message strings (do not reword). */
 export const MSG = {
-  loginEmpty: 'Enter your email and password',
+  loginEmpty: 'Enter your college ID and password',
   registerEmpty: 'Fill in all fields to register',
   enterFullName: 'Enter your full name',
   enterCollegeId: (label: string) => `Enter your ${label}`,
