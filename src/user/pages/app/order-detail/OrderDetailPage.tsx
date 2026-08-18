@@ -1,5 +1,7 @@
-import { ArrowLeft, FileText, Image as ImageIcon, SearchX } from 'lucide-react'
+import { useState } from 'react'
+import { ArrowLeft, Eye, FileText, SearchX } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { DocumentViewer } from '@/components/app/DocumentViewer'
 import { TicketCard } from '@/components/app/TicketCard'
 import { StatusChip } from '@/components/app/StatusChip'
 import { StatusTimeline } from '@/components/app/StatusTimeline'
@@ -9,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { ActionCard } from '@/pages/app/order-detail/ActionCard'
 import { useAppStore } from '@/store/appStore'
 import { SIDE_LABELS } from '@/lib/orders'
-import { fileExt, formatDateTimeDot } from '@/lib/format'
+import { formatDateTimeDot } from '@/lib/format'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
 export default function OrderDetailPage() {
@@ -17,6 +19,7 @@ export default function OrderDetailPage() {
   const navigate = useNavigate()
   const orders = useAppStore((s) => s.orders)
   const order = orders.find((o) => o.id === id)
+  const [viewerOpen, setViewerOpen] = useState(false)
 
   useDocumentTitle(order ? order.id : 'Order not found')
 
@@ -31,8 +34,8 @@ export default function OrderDetailPage() {
     )
   }
 
-  const ext = fileExt(order.fileName)
-  const Icon = ext === 'jpg' || ext === 'jpeg' || ext === 'png' ? ImageIcon : FileText
+  // Every document is a PDF now — it is converted before it is ever ordered.
+  const Icon = FileText
   const copiesLabel = `${order.copies} ${order.copies === 1 ? 'copy' : 'copies'}`
   const scheduleLabel =
     order.scheduleType === 'SCHEDULED' && order.scheduledFor
@@ -82,6 +85,16 @@ export default function OrderDetailPage() {
                     </span>
                   ),
                 )}
+                {order.fileId && (
+                  <button
+                    type="button"
+                    onClick={() => setViewerOpen(true)}
+                    className="press ml-auto flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[11.5px] font-bold text-white"
+                  >
+                    <Eye size={13} strokeWidth={2.2} aria-hidden />
+                    View document
+                  </button>
+                )}
               </div>
             }
           />
@@ -98,6 +111,8 @@ export default function OrderDetailPage() {
           <ActionCard order={order} />
         </div>
       </div>
+
+      <DocumentViewer order={order} open={viewerOpen} onClose={() => setViewerOpen(false)} />
     </div>
   )
 }

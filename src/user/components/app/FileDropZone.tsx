@@ -32,7 +32,7 @@ export function FileDropZone({
   const accept = (file: File | undefined) => {
     if (!file) return
     if (!isAccepted(file.name)) {
-      toast('Unsupported file type', 'Choose a PDF, DOC, DOCX, JPG or PNG file.', 'warning')
+      toast('Unsupported file type', 'Choose a PDF, JPG or PNG file. Save Word or PowerPoint documents as PDF first.', 'warning')
       return
     }
     onFile(file)
@@ -115,7 +115,7 @@ export function FileDropZone({
         {dragging ? 'Release to upload' : 'Drop a file here, or tap to upload'}
       </p>
       <p className="mt-1 text-[12.5px] font-medium text-muted">
-        PDF, DOC, DOCX, JPG or PNG · page count detected instantly
+        PDF, JPG or PNG · converted to PDF and counted on this device
       </p>
       <input
         ref={inputRef}

@@ -34,6 +34,13 @@ export interface Order {
   id: string
   jobId: string
   userId: string
+  /** Backend document id — the key for both the local copy and `/api/files/:id/content`. */
+  fileId: string | null
+  /**
+   * Where the stored document can be read back, or null while it still lives
+   * only on this device (order placed, payment not yet settled).
+   */
+  fileUrl: string | null
   fileName: string
   fileSizeKb: number
   /** Pages to print per copy (length of selectedPages, or totalDocPages). */

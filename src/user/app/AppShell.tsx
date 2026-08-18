@@ -7,6 +7,9 @@ import { CoachTour } from '@/components/app/CoachTour'
 import { WelcomeDialog } from '@/components/app/WelcomeDialog'
 import { NEW_ORDER_TOUR_STEPS } from '@/lib/tourSteps'
 import { useAppStore } from '@/store/appStore'
+import { toast } from '@/store/uiStore'
+import { apiErrorMessage } from '@/lib/apiError'
+import { resumePendingUploads } from '@/services/pendingUploads'
 import { useDesktop } from '@/hooks/useMediaQuery'
 
 /**
@@ -41,11 +44,51 @@ export function AppShell() {
     navigate('/app')
   }
 
+  // A failed load used to reject into nothing, leaving the app looking like an
+  // account with no orders. Say what actually happened instead.
   useEffect(() => {
     if (!userId) return
-    refresh()
-    loadLocations()
+    refresh().catch((err) => {
+      toast('Could not load your orders', apiErrorMessage(err, 'Please try again.'), 'warning')
+    })
+    loadLocations().catch(() => {
+      // Print hubs are cosmetic until an order is placed; the location picker
+      // reports its own empty state.
+    })
   }, [userId, refresh, loadLocations])
+
+  // A document is only sent after its order is paid for, which leaves a window
+  // where money has moved and the bytes are still here. If that upload was
+  // interrupted — connection dropped, tab closed — finish it now, and again
+  // whenever the connection comes back. Until it lands the backend holds the
+  // job out of the print queue, so the order is delayed rather than lost.
+  useEffect(() => {
+    if (!userId) return
+
+    let cancelled = false
+
+    const resume = async () => {
+      const { delivered, rejected } = await resumePendingUploads()
+      if (cancelled) return
+      if (delivered > 0) {
+        toast(
+          delivered === 1 ? 'Document sent' : `${delivered} documents sent`,
+          'Your paid order is now with the print server.',
+        )
+        refresh()
+      }
+      for (const problem of rejected) {
+        toast('Document could not be sent', problem, 'warning')
+      }
+    }
+
+    void resume()
+    window.addEventListener('online', resume)
+    return () => {
+      cancelled = true
+      window.removeEventListener('online', resume)
+    }
+  }, [userId, refresh])
 
   // First visit starts straight at the coach tour.
   //

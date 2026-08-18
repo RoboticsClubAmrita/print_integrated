@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import { ArrowLeft, ChevronDown, ChevronUp, FileWarning } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 import type { StoredFile } from '@/services/fileService'
 import type { PrintLocation, PrintSide } from '@/types'
 import { openPdf, type PdfHandle } from '@/services/pdf'
@@ -263,26 +263,10 @@ export function PrintPreview({
 
       <div className="lg:grid lg:grid-cols-[1.12fr_0.88fr] lg:divide-x lg:divide-line">
         <div className="p-5 sm:p-7">
+          {/* Always a PDF: images are converted before they get this far, so
+              the preview shows the exact document that will be printed. */}
           <div className="overflow-hidden rounded-[16px] bg-chip/40">
-            {config.stored.kind === 'pdf' ? (
-              <PdfPager stored={config.stored} pages={pages} />
-            ) : config.stored.kind === 'image' ? (
-              <div className="grid place-items-center p-6">
-                <img
-                  src={config.stored.objectUrl}
-                  alt={config.stored.file.name}
-                  className="max-h-[500px] max-w-full rounded-[12px] shadow-lift"
-                />
-              </div>
-            ) : (
-              <div className="flex h-[220px] flex-col items-center justify-center gap-3 px-8 text-center">
-                <FileWarning size={30} className="text-muted" strokeWidth={1.6} />
-                <p className="max-w-[360px] text-[13.5px] font-medium text-muted">
-                  Live preview isn&apos;t available for .{config.stored.ext} files yet — double-check
-                  the settings below before confirming.
-                </p>
-              </div>
-            )}
+            <PdfPager stored={config.stored} pages={pages} />
           </div>
         </div>
 

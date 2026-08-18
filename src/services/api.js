@@ -73,7 +73,12 @@ export const getPaymentsByUserAPI = (userId) => `${API}/payments/user/${userId}`
 export const webhookAPI = `${API}/payments/webhook`;
 
 /* ================= FILES ================= */
-export const uploadFileAPI = `${API}/files/upload`;
+// A document is declared before payment and its bytes are handed over after.
+// There is no combined "upload with metadata" endpoint any more — see
+// print_backend/routes/fileRoutes.js for why.
+export const registerFileAPI = `${API}/files/register`;
+export const fileContentAPI = (fileId) => `${API}/files/${fileId}/content`;
+export const fileMetadataAPI = (fileId) => `${API}/files/${fileId}`;
 
 /* ================= CONFIG ================= */
 export const getConfigAPI = `${API}/config`;
@@ -265,13 +270,44 @@ export const userService = {
 };
 
 // ── File Service ──
+// Two phases, split by payment: `register` tells the backend what we are about
+// to print (name, size, sha256, page count) so the order can be priced, and
+// `uploadContent` hands over the PDF itself once the job is paid for. The
+// document never leaves the browser in between.
 export const fileService = {
-    upload: async (formData) => {
-        const response = await api.post(uploadFileAPI, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
+    register: async ({ userId, originalName, fileSize, totalPages, checksum }) => {
+        const response = await api.post(registerFileAPI, {
+            userId,
+            originalName,
+            fileSize,
+            totalPages,
+            checksum,
         });
+        return response.data;
+    },
+
+    uploadContent: async (fileId, file, onProgress) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.post(fileContentAPI(fileId), formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: onProgress
+                ? (event) => {
+                      if (event.total) onProgress(event.loaded / event.total);
+                  }
+                : undefined,
+        });
+        return response.data;
+    },
+
+    /** Fetches a stored document as a Blob — authorised, so it can't be a plain <img src>. */
+    fetchContent: async (fileId) => {
+        const response = await api.get(fileContentAPI(fileId), { responseType: 'blob' });
+        return response.data;
+    },
+
+    getMetadata: async (fileId) => {
+        const response = await api.get(fileMetadataAPI(fileId));
         return response.data;
     },
 };

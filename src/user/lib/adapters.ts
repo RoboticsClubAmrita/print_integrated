@@ -31,8 +31,10 @@ export interface BackendJob {
   totalCost: number
   createdAt: string
   originalName?: string | null
-  storedName?: string | null
+  /** `/api/files/<fileId>/content` once the document is stored; null before that. */
   fileUrl?: string | null
+  /** REGISTERED while the document is still only on the user's device. */
+  fileUploadStatus?: 'REGISTERED' | 'STORED' | null
   stackName?: string | null
   collectedStackName?: string | null
   fileSizeKb?: number
@@ -60,6 +62,10 @@ export function jobToOrder(job: BackendJob, locations: PrintLocation[] = []): Or
     id: job.referenceId,
     jobId: job._id,
     userId: job.userId,
+    fileId: job.fileId ?? null,
+    // Null until the document has actually been uploaded — the UI falls back
+    // to the copy still held on this device in that window.
+    fileUrl: job.fileUrl ?? null,
     fileName: job.originalName ?? 'Document',
     fileSizeKb: job.fileSizeKb ?? 0,
     pages: job.totalPagesToPrint,

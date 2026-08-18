@@ -68,7 +68,20 @@ export declare const userService: {
     hardDelete: (userId: string) => Promise<any>;
 };
 export declare const fileService: {
-    upload: (formData: any) => Promise<any>;
+    register: (input: {
+        userId: string;
+        originalName: string;
+        fileSize: number;
+        totalPages: number;
+        checksum: string;
+    }) => Promise<any>;
+    uploadContent: (
+        fileId: string,
+        file: File,
+        onProgress?: (fraction: number) => void,
+    ) => Promise<any>;
+    fetchContent: (fileId: string) => Promise<Blob>;
+    getMetadata: (fileId: string) => Promise<any>;
 };
 export declare const jobService: {
     create: (jobData: any) => Promise<any>;

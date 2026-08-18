@@ -12,6 +12,7 @@ import { hasSeenTour, loadPrefs, markTourSeenFor, savePrefs } from '@/services/d
 import { jobToOrder, locationToPrintLocation, penaltyToPenalty } from '@/lib/adapters'
 import { isPaid, orderCost } from '@/lib/orders'
 import { isToday } from '@/lib/format'
+import { withRetry } from '@/lib/apiError'
 import { jobService, penaltyService, hardwareService } from '../../services/api'
 import { getStoredUser, getToken, isPersistent } from '../../services/tokenStore'
 
@@ -107,9 +108,11 @@ export const useAppStore = create<AppState>()((set, get) => ({
     const user = get().user
     if (!user) return
     const locations = get().locations
+    // Reads are safe to repeat, so a dropped connection retries rather than
+    // leaving the app showing an empty order list as if nothing were there.
     const [jobsRes, penaltiesRes] = await Promise.all([
-      jobService.getByUser(user.id, { limit: 100 }),
-      penaltyService.getForUser(user.id),
+      withRetry(() => jobService.getByUser(user.id, { limit: 100 })),
+      withRetry(() => penaltyService.getForUser(user.id)),
     ])
     const jobsData = jobsRes?.DATA ?? jobsRes
     const penaltiesData = penaltiesRes?.DATA ?? penaltiesRes

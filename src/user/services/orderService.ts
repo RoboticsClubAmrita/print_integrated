@@ -1,18 +1,32 @@
-/** Order lifecycle: real file upload + print-job create/cancel/collect against the Postgres-backed API. */
+/**
+ * Order lifecycle against the Postgres-backed API.
+ *
+ * Placing an order is three steps, and the order matters:
+ *
+ *   1. register — tell the backend what we're printing (name, size, sha256,
+ *      page count). No bytes. This is what the order is priced against.
+ *   2. pay      — settle the job.
+ *   3. upload   — only now does the PDF leave the browser.
+ *
+ * Between 2 and 3 the document exists nowhere but this device, so it is
+ * written to IndexedDB before payment is attempted and only dropped once the
+ * backend confirms receipt. `resumePendingUploads` finishes the job if this
+ * tab dies in between.
+ */
 import type { Order, PrintSide } from '@/types'
 import { jobToOrder } from '@/lib/adapters'
 import { useAppStore } from '@/store/appStore'
-import { fileService as realFiles, jobService as realJobs, paymentService as realPayments } from '../../services/api'
-
-function apiErrorMessage(err: unknown, fallback: string): string {
-  const e = err as { response?: { data?: { MESSAGE?: string; message?: string } } }
-  return e?.response?.data?.MESSAGE || e?.response?.data?.message || fallback
-}
+import { jobService as realJobs, paymentService as realPayments, fileService as realFiles } from '../../services/api'
+import { apiErrorMessage } from '@/lib/apiError'
+import { attachJob, dropPending, flushPending, getPending, putPending } from '@/services/pendingUploads'
 
 export interface NewOrderInput {
+  /** The prepared PDF. Stays local until the order is paid for. */
   file: File
   fileName: string
   fileSizeKb: number
+  /** sha256 of `file`, quoted at registration and re-checked on upload. */
+  checksum: string
   totalDocPages: number
   selectedPages: number[] | null
   copies: number
@@ -26,6 +40,10 @@ export interface PlacedOrder {
   order: Order
   /** False when the job was created but could not be marked paid. */
   paymentConfirmed: boolean
+  /** False when payment landed but the document could not be delivered yet. */
+  documentUploaded: boolean
+  /** Set when the document upload is being retried in the background. */
+  uploadNote: string | null
 }
 
 export async function placeOrder(input: NewOrderInput): Promise<PlacedOrder> {
@@ -33,27 +51,41 @@ export async function placeOrder(input: NewOrderInput): Promise<PlacedOrder> {
   const user = state.user
   if (!user) throw new Error('Not signed in')
 
-  const formData = new FormData()
-  formData.append('file', input.file)
-  formData.append('userId', user.id)
-
+  // ── 1. Register the document: metadata only, the PDF stays here.
   let fileId: string | undefined
   try {
-    const uploadRes = await realFiles.upload(formData)
-    fileId = (uploadRes?.DATA ?? uploadRes)?.fileId
+    const res = await realFiles.register({
+      userId: user.id,
+      originalName: input.fileName,
+      fileSize: input.file.size,
+      totalPages: input.totalDocPages,
+      checksum: input.checksum,
+    })
+    fileId = (res?.DATA ?? res)?.fileId
   } catch (err) {
-    throw new Error(apiErrorMessage(err, 'Could not upload the file.'))
+    throw new Error(apiErrorMessage(err, 'Could not start the order.'))
   }
-  if (!fileId) throw new Error('Could not upload the file.')
+  if (!fileId) throw new Error('Could not start the order.')
+
+  // Hold the bytes locally before any money moves, so a paid order can always
+  // be completed even if this tab never gets another chance to talk to us.
+  await putPending({
+    fileId,
+    userId: user.id,
+    jobId: null,
+    fileName: input.fileName,
+    blob: input.file,
+    checksum: input.checksum,
+  }).catch(() => {
+    // A browser with no usable IndexedDB (private mode, quota) still works —
+    // it just can't resume an interrupted upload later in the session.
+  })
 
   const payload: Record<string, unknown> = {
     userId: user.id,
     fileId,
     printSide: input.side,
     copies: input.copies,
-    // Server is the source of truth for the printed page count: the full
-    // selection length, or the whole document when printing every page.
-    totalPagesToPrint: input.selectedPages && input.selectedPages.length ? input.selectedPages.length : input.totalDocPages,
     currency: 'INR',
   }
   if (input.locationId) payload.locationId = input.locationId
@@ -66,19 +98,26 @@ export async function placeOrder(input: NewOrderInput): Promise<PlacedOrder> {
     payload.scheduledFor = input.scheduledFor
   }
 
+  // ── 2. Create the job. It is priced from the registered page count.
   let jobId: string | undefined
   try {
     const createRes = await realJobs.create(payload)
     jobId = (createRes?.DATA ?? createRes)?.jobId
   } catch (err) {
+    // Nothing was charged and no document was sent — drop the held bytes.
+    await dropPending(fileId).catch(() => {})
     throw new Error(apiErrorMessage(err, 'Could not place the order.'))
   }
-  if (!jobId) throw new Error('Could not place the order.')
+  if (!jobId) {
+    await dropPending(fileId).catch(() => {})
+    throw new Error('Could not place the order.')
+  }
+  await attachJob(fileId, jobId).catch(() => {})
 
-  // Confirming settles the job immediately — there is no separate pay step, so
-  // this must land for the order to leave "Awaiting Payment". One retry covers
-  // a transient blip; a real failure is reported rather than swallowed, since
-  // otherwise the job sits unpaid while the user is told it was placed.
+  // ── 3. Settle the job. Confirming settles it immediately — there is no
+  // separate pay step, so this must land for the order to leave "Awaiting
+  // Payment". One retry covers a transient blip; a real failure is reported
+  // rather than swallowed.
   let paymentConfirmed = true
   try {
     await realPayments.markPaid(jobId)
@@ -91,11 +130,37 @@ export async function placeOrder(input: NewOrderInput): Promise<PlacedOrder> {
     }
   }
 
+  // ── 4. Payment is in — hand over the document. Until this lands the backend
+  // holds the job back from the print queue, so a failure here delays the
+  // print rather than losing the order.
+  let documentUploaded = false
+  let uploadNote: string | null = null
+
+  if (paymentConfirmed) {
+    const held = await getPending(fileId).catch(() => undefined)
+    try {
+      if (held) {
+        documentUploaded = await flushPending(held)
+        if (!documentUploaded) {
+          uploadNote = 'Your document is still being sent — it will finish automatically.'
+        }
+      } else {
+        // No local store available; send straight from memory.
+        await realFiles.uploadContent(fileId, input.file)
+        documentUploaded = true
+      }
+    } catch (err) {
+      uploadNote = apiErrorMessage(err, 'The document could not be sent to the print server.')
+    }
+  } else {
+    uploadNote = 'Your document stays on this device until the payment is confirmed.'
+  }
+
   const jobRes = await realJobs.getById(jobId)
   const job = jobRes?.DATA ?? jobRes
   const order = jobToOrder(job, state.locations)
   await state.refresh()
-  return { order, paymentConfirmed }
+  return { order, paymentConfirmed, documentUploaded, uploadNote }
 }
 
 export async function cancelOrder(jobId: string, reason?: string): Promise<void> {

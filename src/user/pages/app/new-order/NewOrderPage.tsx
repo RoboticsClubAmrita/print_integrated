@@ -7,10 +7,11 @@ import { ConfigCard } from '@/pages/app/new-order/ConfigCard'
 import { SummaryPanel } from '@/pages/app/new-order/SummaryPanel'
 import { PrintPreview, type PreviewConfig } from '@/pages/app/new-order/PrintPreview'
 import {
+  DocumentPrepError,
+  PageDetectionError,
   detectPages,
   getFile,
-  mergeFilesIntoPdf,
-  putFile,
+  prepareDocument,
   revokeFile,
   type StoredFile,
 } from '@/services/fileService'
@@ -83,8 +84,10 @@ export default function NewOrderPage() {
     let next: StoredFile | null = null
 
     try {
-      const mergedFile = await mergeFilesIntoPdf(files)
-      next = putFile(mergedFile)
+      // Everything becomes one PDF right here, in the browser. That PDF is
+      // what gets previewed, counted, priced and — after payment — printed,
+      // so all four always agree.
+      next = await prepareDocument(files)
       setFileId(next.fileId)
 
       const pages = await detectPages(next)
@@ -106,13 +109,26 @@ export default function NewOrderPage() {
       setTotalPages(null)
       setSelectedPages(null)
 
-      toast(
-        'Unable to merge files',
-        error instanceof Error
-          ? error.message
-          : 'The selected files could not be merged into one PDF.',
-        'warning',
-      )
+      // The page count is what the order is billed on, so a document whose
+      // pages can't be counted is refused outright instead of being ordered
+      // against a guess.
+      if (error instanceof PageDetectionError) {
+        toast(
+          'Uploading failed',
+          `Page detection failed — ${error.message.replace(/^page detection failed\s*/i, '') || 'this document could not be read'}. Try re-saving it as a PDF.`,
+          'warning',
+        )
+      } else if (error instanceof DocumentPrepError) {
+        toast('Uploading failed', error.message, 'warning')
+      } else {
+        toast(
+          'Uploading failed',
+          error instanceof Error
+            ? error.message
+            : 'The selected files could not be prepared for printing.',
+          'warning',
+        )
+      }
     } finally {
       setDetecting(false)
     }
@@ -150,6 +166,10 @@ export default function NewOrderPage() {
           id: 'DEMO-0001',
           jobId: DEMO_JOB_ID,
           userId: user.id,
+          // Nothing about the demo order exists server-side, so there is no
+          // document to fetch back — the viewer correctly reports as much.
+          fileId: null,
+          fileUrl: null,
           fileName: stored.file.name,
           fileSizeKb: stored.sizeKb,
           pages: selectedPageCount,
@@ -188,10 +208,11 @@ export default function NewOrderPage() {
         return
       }
 
-      const { order, paymentConfirmed } = await placeOrder({
+      const { order, paymentConfirmed, uploadNote } = await placeOrder({
         file: stored.file,
         fileName: stored.file.name,
         fileSizeKb: stored.sizeKb,
+        checksum: stored.checksum,
         totalDocPages: totalPages,
         selectedPages,
         copies,
@@ -211,7 +232,19 @@ export default function NewOrderPage() {
       if (!paymentConfirmed) {
         toast('Payment could not be confirmed — settle this order from Billing.')
       }
+      // The document is sent after payment; if that hasn't landed yet the
+      // order is real and the bytes are safe locally, so say what's happening
+      // rather than implying the order failed.
+      if (uploadNote) {
+        toast('Document still sending', uploadNote, 'warning')
+      }
       navigate(`/app/orders/${order.id}`)
+    } catch (error) {
+      toast(
+        'Order not placed',
+        error instanceof Error ? error.message : 'The order could not be placed.',
+        'warning',
+      )
     } finally {
       setPlacing(false)
     }

@@ -11,6 +11,9 @@ import {
     ShieldAlert,
 } from 'lucide-react';
 import { hardwareService, jobService, penaltyService, systemService, userService } from '../services/api';
+// Read the session through tokenStore — "Remember me" unticked keeps it in
+// sessionStorage, where a direct localStorage read finds nothing.
+import { getStoredUser, getToken } from '../services/tokenStore';
 import { EmptyState, LedDot, Panel, PageHeader, SkeletonRows, StatusChip, inr } from '../components/admin/ui';
 
 /**
@@ -98,13 +101,13 @@ const Dashboard: React.FC = () => {
 
     const fetchCurrentUser = async () => {
         try {
-            const storedUser = localStorage.getItem('user');
+            const storedUser = getStoredUser();
             const localUser = storedUser ? JSON.parse(storedUser) : null;
             let userId = localUser?._id || localUser?.id || localUser?.userId;
 
             // Fallback: decode JWT to get userId if user object not in localStorage
             if (!userId) {
-                const token = localStorage.getItem('token');
+                const token = getToken();
                 if (token) {
                     try {
                         const payload = JSON.parse(atob(token.split('.')[1]));
@@ -121,7 +124,7 @@ const Dashboard: React.FC = () => {
             const role = user?.role;
             if (role === 'SUPER_ADMIN' || role === 'ADMIN') setIsSuperAdmin(true);
         } catch {
-            const storedUser = localStorage.getItem('user');
+            const storedUser = getStoredUser();
             const localUser = storedUser ? JSON.parse(storedUser) : null;
             if (localUser?.role === 'SUPER_ADMIN' || localUser?.role === 'ADMIN') setIsSuperAdmin(true);
         }
