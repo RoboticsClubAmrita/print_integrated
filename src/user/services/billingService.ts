@@ -9,20 +9,27 @@
  * app never calls it.)
  */
 import type { Order } from '@/types'
-import { orderCost } from '@/lib/orders'
 import { outstandingDues, useAppStore } from '@/store/appStore'
 import { payDues, payForJob } from '@/services/razorpay'
 import { apiErrorMessage } from '@/lib/apiError'
 import { flushPending, getPending } from '@/services/pendingUploads'
 
-/** Settles one job through the gateway. Throws PaymentError if it doesn't. */
-async function settle(order: Order): Promise<void> {
+/**
+ * Settles one job through the gateway. Throws PaymentError if it doesn't.
+ *
+ * @returns the amount the backend actually charged, in rupees. This can be
+ * lower than `orderCost(order)`: an outstanding balance is rolled into every
+ * unpaid order's total, and the backend re-prices against the balance still
+ * owed at checkout time, so dues already settled are not charged again.
+ */
+async function settle(order: Order): Promise<number> {
   const user = useAppStore.getState().user
-  await payForJob(order.jobId, {
+  const paid = await payForJob(order.jobId, {
     name: user?.name,
     email: user?.email,
     phone: user?.phone,
   })
+  return paid.amount
 }
 
 /**
@@ -49,13 +56,16 @@ async function deliverDocumentFor(order: Order): Promise<string | null> {
 
 /**
  * Single-order payment (order detail "Pay ₹X").
- * @returns a note when the document could not be delivered, else null.
+ * @returns the amount actually charged, plus a note when the document could
+ * not be delivered.
  */
-export async function payOrder(order: Order): Promise<string | null> {
-  await settle(order)
+export async function payOrder(
+  order: Order,
+): Promise<{ amountPaid: number; note: string | null }> {
+  const amountPaid = await settle(order)
   const note = await deliverDocumentFor(order)
   await useAppStore.getState().refresh()
-  return note
+  return { amountPaid, note }
 }
 
 /**
@@ -71,9 +81,11 @@ export async function payAllDue(): Promise<number> {
   let cleared = 0
   try {
     for (const order of pending) {
-      await settle(order)
+      // Sum what was charged, not each order's cached total — every unpaid
+      // order's total carries the same rolled-in balance, so adding those
+      // would report the same dues once per order.
+      cleared += await settle(order)
       await deliverDocumentFor(order)
-      cleared += orderCost(order)
     }
   } finally {
     await useAppStore.getState().refresh()

@@ -31,10 +31,12 @@ export function ActionCard({ order }: { order: Order }) {
     try {
       // Paying is also what releases the document: it has been held on this
       // device since the order was placed and is sent as part of this step.
-      const uploadNote = await payOrder(order)
+      // The charged amount comes back from the payment: `orderCost(order)` is
+      // a cached total that may still include a balance settled elsewhere.
+      const { amountPaid, note: uploadNote } = await payOrder(order)
       showSuccess({
         title: 'Payment Successful',
-        subtitle: `${rupees(orderCost(order))} paid for ${order.fileName}.`,
+        subtitle: `${rupees(amountPaid)} paid for ${order.fileName}.`,
       })
       if (uploadNote) toast('Document still sending', uploadNote, 'warning')
     } catch (e) {

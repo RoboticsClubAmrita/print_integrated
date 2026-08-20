@@ -44,6 +44,17 @@ export const ACCEPT_ATTR = ACCEPTED_EXTENSIONS.map((e) => `.${e}`).join(',')
  */
 export const ACCEPTED_LABEL = ACCEPTED_EXTENSIONS.map((e) => e.toUpperCase()).join(' · ')
 
+/**
+ * Largest upload the backend accepts, in megabytes.
+ *
+ * The server is the real authority (`MAX_UPLOAD_MB` in the backend's .env,
+ * enforced by multer and the body parser). This mirrors it so an oversized
+ * document is caught in the browser rather than after a long upload the
+ * server is guaranteed to reject. Keep the two values in step.
+ */
+export const MAX_UPLOAD_MB = 50
+export const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
+
 /** Formats we recognise but cannot convert in the browser, with what to do instead. */
 const CONVERT_YOURSELF: Record<string, string> = {
   // .doc is the pre-2007 binary format; .docx is handled directly.
@@ -195,6 +206,17 @@ export async function mergeFilesIntoPdf(files: File[]): Promise<File> {
  */
 export async function prepareDocument(files: File[]): Promise<StoredFile> {
   const pdf = await mergeFilesIntoPdf(files)
+
+  // The merged PDF — not any single selected file — is what actually gets
+  // uploaded, so this is the only size the server's limit applies to.
+  if (pdf.size > MAX_UPLOAD_BYTES) {
+    const sizeMb = (pdf.size / (1024 * 1024)).toFixed(1)
+    throw new DocumentPrepError(
+      `That document is ${sizeMb} MB, over the ${MAX_UPLOAD_MB} MB upload limit. ` +
+        'Try selecting fewer files, or splitting it into smaller documents.',
+    )
+  }
+
   const bytes = await pdf.arrayBuffer()
   const checksum = await sha256Hex(bytes)
 
