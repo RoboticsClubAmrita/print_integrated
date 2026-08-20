@@ -1,7 +1,7 @@
 import { clsx } from 'clsx'
 import type { Order } from '@/types'
 import { colorModeLabel, isPaid, orderCost, SIDE_LABELS } from '@/lib/orders'
-import { rupees } from '@/lib/pricing'
+import { backendRateLabel, rupees } from '@/lib/pricing'
 
 function Row({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
   return (
@@ -43,7 +43,7 @@ export function CostBreakdown({ order }: { order: Order }) {
         <Row label="Copies" value={`${order.copies}`} />
         {hasRealRate ? (
           <>
-            <Row label="Rate charged" value={`₹${order.costPerPage} / page`} />
+            <Row label="Rate charged" value={backendRateLabel(order.costPerPage, order.side)} />
             <Row label="Print cost" value={rupees(order.printCost)} />
           </>
         ) : (

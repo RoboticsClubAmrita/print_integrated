@@ -29,6 +29,15 @@ export function rateLabel(side: PrintSide): string {
     : `₹${DOUBLE_SIDED_PER_SHEET} / sheet`
 }
 
+/**
+ * Labels a rate the backend charged. Double-sided prices are per SHEET (two
+ * pages share one), so calling every rate "per page" misreads the duplex
+ * price by a factor of two.
+ */
+export function backendRateLabel(rate: number, side: PrintSide): string {
+  return side === 'SINGLE' ? `₹${rate} / page` : `₹${rate} / sheet`
+}
+
 export function rupees(amount: number): string {
   return `₹${amount}`
 }

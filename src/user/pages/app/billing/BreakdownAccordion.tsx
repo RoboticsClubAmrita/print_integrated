@@ -4,13 +4,16 @@ import { ChevronDown, FileText, Image as ImageIcon } from 'lucide-react'
 import type { Order } from '@/types'
 import { orderCost, SIDE_LABELS } from '@/lib/orders'
 import { fileExt } from '@/lib/format'
-import { rateLabel, rupees } from '@/lib/pricing'
+import { backendRateLabel, rateLabel, rupees } from '@/lib/pricing'
 import { DUR, EASE } from '@/lib/motion'
 
 function OrderRow({ order }: { order: Order }) {
   const ext = fileExt(order.fileName)
   const Icon = ext === 'jpg' || ext === 'jpeg' || ext === 'png' ? ImageIcon : FileText
-  const rate = order.costPerPage > 0 ? `at ₹${order.costPerPage} / page` : `at ${rateLabel(order.side)}`
+  const rate =
+    order.costPerPage > 0
+      ? `at ${backendRateLabel(order.costPerPage, order.side)}`
+      : `at ${rateLabel(order.side)}`
 
   return (
     <div className="flex items-center gap-3 py-3 border-b border-line/60 last:border-0">
