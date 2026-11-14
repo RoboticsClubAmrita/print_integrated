@@ -184,8 +184,18 @@ export async function placeOrder(input: NewOrderInput): Promise<PlacedOrder> {
   return { order, paymentConfirmed, documentUploaded, uploadNote, serverPages, pagesCorrected }
 }
 
+/**
+ * Cancels an order. The backend refuses once printing has started; in that
+ * case the order list is refreshed anyway, so the screen drops the stale
+ * Cancel button and shows the real status, and the reason is rethrown.
+ */
 export async function cancelOrder(jobId: string, reason?: string): Promise<void> {
-  await realJobs.cancel({ jobId, reason })
+  try {
+    await realJobs.cancel({ jobId, reason })
+  } catch (err) {
+    await useAppStore.getState().refresh().catch(() => {})
+    throw new Error(apiErrorMessage(err, 'Could not cancel this order.'))
+  }
   await useAppStore.getState().refresh()
 }
 

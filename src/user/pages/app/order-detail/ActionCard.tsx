@@ -48,8 +48,15 @@ export function ActionCard({ order }: { order: Order }) {
 
   const cancel = async () => {
     setCancelBusy(true)
-    await cancelOrder(order.jobId)
-    setCancelBusy(false)
+    try {
+      await cancelOrder(order.jobId)
+      toast('Order cancelled', `${order.fileName} will not be printed.`)
+    } catch (e) {
+      // Typically: printing started after this page last refreshed.
+      toast(e instanceof Error ? e.message : 'Could not cancel this order.', undefined, 'warning')
+    } finally {
+      setCancelBusy(false)
+    }
   }
 
   const requestCollection = () => {

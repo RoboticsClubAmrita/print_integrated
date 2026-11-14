@@ -16,6 +16,9 @@ interface RegisterState {
   email?: string
 }
 
+/** Must match the backend's /auth/register/resend cooldown, or an early resend is refused. */
+const RESEND_COOLDOWN_SECONDS = 60
+
 export default function VerifyEmailPage() {
   useDocumentTitle('Verify your email')
   const navigate = useNavigate()
@@ -29,7 +32,7 @@ export default function VerifyEmailPage() {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const { remaining, done, restart } = useCountdown(30)
+  const { remaining, done, restart } = useCountdown(RESEND_COOLDOWN_SECONDS)
 
   if (!state?.collegeId) return null
 

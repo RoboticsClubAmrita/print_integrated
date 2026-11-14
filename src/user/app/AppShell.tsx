@@ -11,6 +11,7 @@ import { toast } from '@/store/uiStore'
 import { apiErrorMessage } from '@/lib/apiError'
 import { resumePendingUploads } from '@/services/pendingUploads'
 import { useDesktop } from '@/hooks/useMediaQuery'
+import { useLiveOrders } from '@/hooks/useLiveOrders'
 
 /**
  * Hosts the four authenticated tabs behind the sticky header (desktop) /
@@ -56,6 +57,9 @@ export function AppShell() {
       // reports its own empty state.
     })
   }, [userId, refresh, loadLocations])
+
+  // Status changes happen on the print side; keep them flowing in.
+  useLiveOrders(userId, demoMode)
 
   // A document is only sent after its order is paid for, which leaves a window
   // where money has moved and the bytes are still here. If that upload was
