@@ -33,10 +33,15 @@ export function isPaid(status: OrderStatus): boolean {
   return status !== 'PENDING' && status !== 'CANCELLED' && status !== 'FAILED'
 }
 
-/** Authoritative cost when present, else the local fallback formula. */
+/** Authoritative cost when present, else recomputed from the rate the backend priced it at. */
 export function orderCost(order: Order): number {
   if (order.totalCost > 0) return Math.round(order.totalCost)
-  return printCost({ pages: order.pages, copies: order.copies, side: order.side })
+  return printCost({
+    pages: order.pages,
+    copies: order.copies,
+    side: order.side,
+    rate: order.costPerPage,
+  })
 }
 
 export type ChipTone = 'muted' | 'warning' | 'success'

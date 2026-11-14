@@ -16,7 +16,7 @@
  * actually be printed. The PDF is written to IndexedDB before any of this so
  * an interrupted upload can be resumed rather than restarted.
  */
-import type { Order, PrintSide } from '@/types'
+import type { ColorMode, Order, PaperSize, PrintSide } from '@/types'
 import { jobToOrder } from '@/lib/adapters'
 import { useAppStore } from '@/store/appStore'
 import { jobService as realJobs, fileService as realFiles } from '../../services/api'
@@ -35,6 +35,8 @@ export interface NewOrderInput {
   selectedPages: number[] | null
   copies: number
   side: PrintSide
+  pageType: PaperSize
+  colorMode: ColorMode
   scheduledFor: string | null
   locationId: string | null
   locationName: string | null
@@ -122,6 +124,8 @@ export async function placeOrder(input: NewOrderInput): Promise<PlacedOrder> {
     userId: user.id,
     fileId,
     printSide: input.side,
+    pageType: input.pageType,
+    colorMode: input.colorMode,
     copies: input.copies,
     currency: 'INR',
   }

@@ -2,7 +2,8 @@ import { ArrowRight } from 'lucide-react'
 import { LocationPicker } from '@/components/app/LocationPicker'
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { Button } from '@/components/ui/Button'
-import type { PrintLocation, PrintSide } from '@/types'
+import type { ColorMode, PaperSize, PrintLocation, PrintSide } from '@/types'
+import { colorModeLabel } from '@/lib/orders'
 import { rateLabel } from '@/lib/pricing'
 
 /**
@@ -18,6 +19,10 @@ export function SummaryPanel({
   pages,
   copies,
   side,
+  pageType,
+  colorMode,
+  rate,
+  unpriced,
   estimate,
   disabled,
   loading,
@@ -29,6 +34,12 @@ export function SummaryPanel({
   pages: number
   copies: number
   side: PrintSide
+  pageType: PaperSize
+  colorMode: ColorMode
+  /** Live tariff rate for these choices; null while loading or unpriced. */
+  rate: number | null
+  /** True once rates loaded and the admin has no price for this combination. */
+  unpriced: boolean
   estimate: number
   disabled: boolean
   loading: boolean
@@ -52,10 +63,23 @@ export function SummaryPanel({
           </dd>
         </div>
         <div className="flex items-baseline justify-between">
-          <dt className="text-muted">Side</dt>
-          <dd className="font-bold text-ink">{rateLabel(side)}</dd>
+          <dt className="text-muted">Paper</dt>
+          <dd className="font-bold text-ink">
+            {pageType} • {colorModeLabel(colorMode)}
+          </dd>
+        </div>
+        <div className="flex items-baseline justify-between">
+          <dt className="text-muted">Rate</dt>
+          <dd className="font-bold text-ink">{rate === null ? '—' : rateLabel(rate, side)}</dd>
         </div>
       </dl>
+
+      {unpriced && (
+        <p role="alert" className="rounded-[14px] bg-chip px-4 py-3 text-[12.5px] font-semibold text-ink">
+          {pageType} {colorModeLabel(colorMode)} {side === 'DOUBLE' ? 'double' : 'single'}-sided
+          printing isn&apos;t available yet. Pick another option.
+        </p>
+      )}
 
       <div
         className="dark-panel relative hidden overflow-hidden rounded-[18px] p-5 lg:block"

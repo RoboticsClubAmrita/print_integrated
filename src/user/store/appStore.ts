@@ -7,13 +7,14 @@
  * `AppShell` on mount/user-change and after every mutation.
  */
 import { create } from 'zustand'
-import type { AppNotification, Order, Penalty, PrintLocation, Session, User } from '@/types'
+import type { AppNotification, Order, Penalty, PriceRow, PrintLocation, Session, User } from '@/types'
 import { hasSeenTour, loadPrefs, markTourSeenFor, savePrefs } from '@/services/db'
 import { jobToOrder, locationToPrintLocation, penaltyToPenalty } from '@/lib/adapters'
 import { isPaid, orderCost } from '@/lib/orders'
 import { isToday } from '@/lib/format'
 import { withRetry } from '@/lib/apiError'
-import { jobService, penaltyService, hardwareService } from '../../services/api'
+import { parsePrices } from '@/lib/pricing'
+import { jobService, penaltyService, hardwareService, pricingService } from '../../services/api'
 import { getStoredUser, getToken, isPersistent } from '../../services/tokenStore'
 
 export const DEMO_JOB_ID = 'demo-job'
@@ -25,6 +26,9 @@ interface AppState {
   penalties: Penalty[]
   notifications: AppNotification[]
   locations: PrintLocation[]
+  /** Live tariff from the admin console; empty until `loadPrices` lands. */
+  prices: PriceRow[]
+  pricesLoaded: boolean
   selectedLocationId: string | null
   tourSeen: boolean
   /** Bumped to ask the shell to replay the walkthrough from step 1. */
@@ -36,6 +40,8 @@ interface AppState {
   refresh: () => Promise<void>
   /** Fetch the live print-hub list (rarely changes; called once per session). */
   loadLocations: () => Promise<void>
+  /** Fetch the live tariff (public, same for every user). */
+  loadPrices: () => Promise<void>
   setSession: (session: Session | null) => void
   /** Overwrite the in-memory user (e.g. after a profile edit re-fetch). */
   setUser: (user: User) => void
@@ -80,6 +86,8 @@ function hydrate() {
     penalties: [] as Penalty[],
     notifications: [] as AppNotification[],
     locations: [] as PrintLocation[],
+    prices: [] as PriceRow[],
+    pricesLoaded: false,
     selectedLocationId: null as string | null,
     tourSeen: true, // replaced below once the restored user is known
     tourReplays: 0,
@@ -135,6 +143,11 @@ export const useAppStore = create<AppState>()((set, get) => ({
     if (orders.length) {
       set({ orders: orders.map((o) => ({ ...o, locationName: locations.find((l) => l.id === o.locationId)?.name ?? o.locationName })) })
     }
+  },
+
+  loadPrices: async () => {
+    const res = await withRetry(() => pricingService.getAll())
+    set({ prices: parsePrices(res?.DATA ?? res), pricesLoaded: true })
   },
 
   setSession: (session) => {

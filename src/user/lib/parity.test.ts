@@ -4,7 +4,8 @@
  */
 import { describe, expect, it } from 'vitest'
 import { formatPageRange, parsePageRange } from '@/lib/pageRange'
-import { printCost, rateLabel, rupees, sheetsPerCopy } from '@/lib/pricing'
+import { parsePrices, printCost, rateFor, rateLabel, rupees, sheetsPerCopy } from '@/lib/pricing'
+import type { PriceRow } from '@/types'
 import { isAmritaEmail, isValidPhone, passwordIssue } from '@/lib/validators'
 import { initials } from '@/lib/format'
 
@@ -42,19 +43,65 @@ describe('parsePageRange', () => {
   })
 })
 
+// The live tariff from the admin console (Pricing & Rules).
+const TARIFF: PriceRow[] = [
+  { size: 'A4', type: 'bw', side: 'single', price: 2 },
+  { size: 'A4', type: 'bw', side: 'double', price: 3 },
+  { size: 'A4', type: 'colour', side: 'single', price: 10 },
+  { size: 'A4', type: 'colour', side: 'double', price: 18 },
+  { size: 'A3', type: 'bw', side: 'single', price: 4 },
+  { size: 'A3', type: 'bw', side: 'double', price: 7 },
+  { size: 'A3', type: 'colour', side: 'single', price: 20 },
+  { size: 'A3', type: 'colour', side: 'double', price: 36 },
+  { size: 'A2', type: 'bw', side: 'single', price: 8 },
+  { size: 'A2', type: 'bw', side: 'double', price: 15 },
+  { size: 'A2', type: 'colour', side: 'single', price: 40 },
+  { size: 'A2', type: 'colour', side: 'double', price: 72 },
+]
+
 describe('pricing', () => {
-  it('matches the app formula (₹2/page single, ₹3/sheet double)', () => {
-    expect(printCost({ pages: 8, copies: 2, side: 'SINGLE' })).toBe(32)
-    expect(printCost({ pages: 5, copies: 1, side: 'DOUBLE' })).toBe(9) // ceil(5/2)=3 sheets
-    expect(printCost({ pages: 0, copies: 3, side: 'SINGLE' })).toBe(0)
-    expect(printCost({ pages: 3, copies: 0, side: 'DOUBLE' })).toBe(0)
+  it('picks the rate for the exact size × colour × side', () => {
+    expect(rateFor(TARIFF, 'A4', 'BW', 'SINGLE')).toBe(2)
+    expect(rateFor(TARIFF, 'A4', 'COLOR', 'DOUBLE')).toBe(18)
+    expect(rateFor(TARIFF, 'A3', 'BW', 'DOUBLE')).toBe(7)
+    expect(rateFor(TARIFF, 'A2', 'COLOR', 'SINGLE')).toBe(40)
+  })
+
+  it('returns null for a combination the admin has not priced', () => {
+    expect(rateFor(TARIFF.filter((r) => r.size !== 'A2'), 'A2', 'BW', 'SINGLE')).toBeNull()
+    expect(rateFor([], 'A4', 'BW', 'SINGLE')).toBeNull()
+  })
+
+  it('bills like the backend: copies × pages (or sheets when duplex) × rate', () => {
+    expect(printCost({ pages: 8, copies: 2, side: 'SINGLE', rate: 2 })).toBe(32)
+    expect(printCost({ pages: 5, copies: 1, side: 'DOUBLE', rate: 3 })).toBe(9) // ceil(5/2)=3 sheets
+    expect(printCost({ pages: 5, copies: 2, side: 'DOUBLE', rate: 36 })).toBe(216) // A3 colour duplex
+    expect(printCost({ pages: 3, copies: 1, side: 'SINGLE', rate: 2.5 })).toBe(7.5)
+    expect(printCost({ pages: 0, copies: 3, side: 'SINGLE', rate: 2 })).toBe(0)
+    expect(printCost({ pages: 3, copies: 0, side: 'DOUBLE', rate: 3 })).toBe(0)
     expect(sheetsPerCopy(5, 'DOUBLE')).toBe(3)
     expect(sheetsPerCopy(5, 'SINGLE')).toBe(5)
   })
 
+  it('reads the backend price list, skipping inactive and malformed rows', () => {
+    const rows = parsePrices({
+      prices: [
+        { size: 'A4', type: 'colour', side: 'single', price: 10, isActive: true },
+        { size: 'A3', type: 'bw', side: 'single', price: 4, isActive: false },
+        { size: 'A5', type: 'bw', side: 'single', price: 1 },
+        { size: 'A4', type: 'bw', side: 'double', price: '3' },
+      ],
+    })
+    expect(rows).toEqual([
+      { size: 'A4', type: 'colour', side: 'single', price: 10 },
+      { size: 'A4', type: 'bw', side: 'double', price: 3 },
+    ])
+    expect(parsePrices(undefined)).toEqual([])
+  })
+
   it('labels and currency format', () => {
-    expect(rateLabel('SINGLE')).toBe('₹2 / page')
-    expect(rateLabel('DOUBLE')).toBe('₹3 / sheet')
+    expect(rateLabel(2, 'SINGLE')).toBe('₹2 / page')
+    expect(rateLabel(18, 'DOUBLE')).toBe('₹18 / sheet')
     expect(rupees(42)).toBe('₹42')
   })
 })

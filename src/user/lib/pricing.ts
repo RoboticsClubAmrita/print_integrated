@@ -1,40 +1,49 @@
 /**
- * Print rates in rupees — ported from lib/data/pricing.dart.
- * A4/BW single/double are the canonical app rates; every other row of the
- * rates table is an invented mock value for the static demo (the real app
- * fetches these from the backend's price list).
+ * Print pricing. Every rate comes from the backend's live tariff
+ * (`GET /pricing/all`, edited in the admin console's Pricing & Rules) — there
+ * is no client-side price table, so what an order screen shows is what the
+ * backend will charge. The formula mirrors `billableUnits` in the backend's
+ * jobModule: single-sided is billed per page, double-sided per sheet.
  */
-import type { PaperSize, PriceRow, PrintSide } from '@/types'
+import type { ColorMode, PaperSize, PriceRow, PrintSide } from '@/types'
 
-export const SINGLE_SIDED_PER_PAGE = 2 // ₹2 / page
-export const DOUBLE_SIDED_PER_SHEET = 3 // ₹3 / sheet (2 pages per sheet)
+export const PAPER_SIZES: readonly PaperSize[] = ['A4', 'A3', 'A2']
 
 export function sheetsPerCopy(pages: number, side: PrintSide): number {
   return side === 'SINGLE' ? pages : Math.ceil(pages / 2)
 }
 
-export function printCost(opts: { pages: number; copies: number; side: PrintSide }): number {
-  const { pages, copies, side } = opts
-  if (pages <= 0 || copies <= 0) return 0
-  const perCopy =
-    side === 'SINGLE'
-      ? pages * SINGLE_SIDED_PER_PAGE
-      : Math.ceil(pages / 2) * DOUBLE_SIDED_PER_SHEET
-  return copies * perCopy
-}
-
-export function rateLabel(side: PrintSide): string {
-  return side === 'SINGLE'
-    ? `₹${SINGLE_SIDED_PER_PAGE} / page`
-    : `₹${DOUBLE_SIDED_PER_SHEET} / sheet`
-}
-
 /**
- * Labels a rate the backend charged. Double-sided prices are per SHEET (two
- * pages share one), so calling every rate "per page" misreads the duplex
- * price by a factor of two.
+ * The tariff rate (₹ per page single-sided, ₹ per sheet double-sided) for an
+ * order's choices, or null when the admin has not priced that combination —
+ * the backend refuses such an order, so the UI must not offer a price for it.
  */
-export function backendRateLabel(rate: number, side: PrintSide): string {
+export function rateFor(
+  prices: readonly PriceRow[],
+  size: PaperSize,
+  colorMode: ColorMode,
+  side: PrintSide,
+): number | null {
+  const type = colorMode === 'COLOR' ? 'colour' : 'bw'
+  const tariffSide = side === 'DOUBLE' ? 'double' : 'single'
+  const row = prices.find((r) => r.size === size && r.type === type && r.side === tariffSide)
+  return row ? row.price : null
+}
+
+/** copies × billable units × rate, rounded to paise like the backend. */
+export function printCost(opts: {
+  pages: number
+  copies: number
+  side: PrintSide
+  rate: number
+}): number {
+  const { pages, copies, side, rate } = opts
+  if (pages <= 0 || copies <= 0 || rate <= 0) return 0
+  return Math.round(copies * sheetsPerCopy(pages, side) * rate * 100) / 100
+}
+
+/** Double-sided prices are per SHEET (two pages share one), so say so. */
+export function rateLabel(rate: number, side: PrintSide): string {
   return side === 'SINGLE' ? `₹${rate} / page` : `₹${rate} / sheet`
 }
 
@@ -42,27 +51,40 @@ export function rupees(amount: number): string {
   return `₹${amount}`
 }
 
-/** Full mock rates table: size × type × side (12 rows). */
-export const PRICE_TABLE: PriceRow[] = [
-  { size: 'A4', type: 'bw', side: 'single', price: 2 }, // canonical
-  { size: 'A4', type: 'bw', side: 'double', price: 3 }, // canonical
-  { size: 'A4', type: 'colour', side: 'single', price: 10 },
-  { size: 'A4', type: 'colour', side: 'double', price: 18 },
-  { size: 'A3', type: 'bw', side: 'single', price: 4 },
-  { size: 'A3', type: 'bw', side: 'double', price: 6 },
-  { size: 'A3', type: 'colour', side: 'single', price: 20 },
-  { size: 'A3', type: 'colour', side: 'double', price: 36 },
-  { size: 'A2', type: 'bw', side: 'single', price: 8 },
-  { size: 'A2', type: 'bw', side: 'double', price: 12 },
-  { size: 'A2', type: 'colour', side: 'single', price: 40 },
-  { size: 'A2', type: 'colour', side: 'double', price: 72 },
-]
+const SIZES = new Set<string>(PAPER_SIZES)
+const TYPES = new Set(['bw', 'colour'])
+const SIDES = new Set(['single', 'double'])
 
-export function lookupRate(
-  size: PaperSize,
-  type: 'bw' | 'colour',
-  side: 'single' | 'double',
-): number {
-  const row = PRICE_TABLE.find((r) => r.size === size && r.type === type && r.side === side)
-  return row ? row.price : SINGLE_SIDED_PER_PAGE
+/**
+ * Reads `GET /pricing/all` (`{ prices: [...] }`, or the bare array) into
+ * tariff rows. Inactive rows are dropped because the backend's job pricing
+ * only charges active ones; anything malformed is dropped rather than shown.
+ */
+export function parsePrices(data: unknown): PriceRow[] {
+  const raw = Array.isArray(data)
+    ? data
+    : ((data as { prices?: unknown } | null | undefined)?.prices ?? [])
+  if (!Array.isArray(raw)) return []
+  return raw.flatMap((r: Record<string, unknown>) => {
+    const active = r?.isActive ?? r?.is_active ?? true
+    const price = Number(r?.price)
+    if (
+      active === false ||
+      !SIZES.has(String(r?.size)) ||
+      !TYPES.has(String(r?.type)) ||
+      !SIDES.has(String(r?.side)) ||
+      !Number.isFinite(price) ||
+      price < 0
+    ) {
+      return []
+    }
+    return [
+      {
+        size: r.size as PaperSize,
+        type: r.type as PriceRow['type'],
+        side: r.side as PriceRow['side'],
+        price,
+      },
+    ]
+  })
 }

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { motion } from 'motion/react'
 import { TicketCard } from '@/components/app/TicketCard'
 import { PillToggle } from '@/components/ui/PillToggle'
-import { PRICE_TABLE } from '@/lib/pricing'
+import { PAPER_SIZES, rateFor } from '@/lib/pricing'
+import { useTariff } from '@/hooks/useTariff'
 import { fadeSlideChild, staggerParent } from '@/lib/motion'
 import type { PaperSize } from '@/types'
 
@@ -13,7 +14,11 @@ import type { PaperSize } from '@/types'
  */
 export function PricingSection() {
   const [size, setSize] = useState<PaperSize>('A4')
-  const rows = PRICE_TABLE.filter((r) => r.size === size)
+  const { prices, loaded } = useTariff()
+  const rows = prices.filter((r) => r.size === size)
+  const show = (rate: number | null) => (rate === null ? '—' : `₹${rate}`)
+  const a4Single = show(rateFor(prices, 'A4', 'BW', 'SINGLE'))
+  const a4Double = show(rateFor(prices, 'A4', 'BW', 'DOUBLE'))
 
   return (
     <section id="pricing" className="mx-auto max-w-[1180px] px-4 sm:px-6 py-24 sm:py-32">
@@ -43,9 +48,9 @@ export function PricingSection() {
                     <p className="font-receipt text-[11px] font-bold tracking-[1.5px] text-muted">
                       SINGLE-SIDED
                     </p>
-                    <p className="mt-1 text-[13.5px] font-semibold text-muted">per page</p>
+                    <p className="mt-1 text-[13.5px] font-semibold text-muted">A4 B&amp;W · per page</p>
                   </div>
-                  <p className="font-receipt text-[34px] font-bold text-ink leading-none">₹2</p>
+                  <p className="font-receipt text-[34px] font-bold text-ink leading-none">{a4Single}</p>
                 </div>
               }
               bottom={
@@ -54,9 +59,9 @@ export function PricingSection() {
                     <p className="font-receipt text-[11px] font-bold tracking-[1.5px] text-muted">
                       DOUBLE-SIDED
                     </p>
-                    <p className="mt-1 text-[13.5px] font-semibold text-muted">per sheet</p>
+                    <p className="mt-1 text-[13.5px] font-semibold text-muted">A4 B&amp;W · per sheet</p>
                   </div>
-                  <p className="font-receipt text-[34px] font-bold text-ink leading-none">₹3</p>
+                  <p className="font-receipt text-[34px] font-bold text-ink leading-none">{a4Double}</p>
                 </div>
               }
             />
@@ -70,11 +75,7 @@ export function PricingSection() {
               Full tariff
             </h3>
             <PillToggle
-              options={[
-                { value: 'A4', label: 'A4' },
-                { value: 'A3', label: 'A3' },
-                { value: 'A2', label: 'A2' },
-              ]}
+              options={PAPER_SIZES.map((s) => ({ value: s, label: s }))}
               value={size}
               onChange={setSize}
               className="w-[210px] shrink-0"
@@ -95,6 +96,11 @@ export function PricingSection() {
                 </span>
               </div>
             ))}
+            {rows.length === 0 && (
+              <p className="px-4 sm:px-5 py-4 text-[14px] font-semibold text-muted">
+                {loaded ? `No ${size} rates set yet.` : 'Loading rates…'}
+              </p>
+            )}
             <div className="mt-1 rounded-[16px] bg-chip/60 px-4 sm:px-5 py-3">
               <p className="font-receipt text-[11.5px] font-bold tracking-[0.5px] text-muted">
                 RATES SET BY THE CAMPUS PRESS · UPDATED LIVE IN THE APP

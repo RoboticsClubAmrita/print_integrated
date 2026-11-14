@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 import type { StoredFile } from '@/services/fileService'
-import type { PrintLocation, PrintSide } from '@/types'
+import type { ColorMode, PaperSize, PrintLocation, PrintSide } from '@/types'
 import { openPdf, type PdfHandle } from '@/services/pdf'
 import { formatPageRange } from '@/lib/pageRange'
 import { rateLabel, rupees, sheetsPerCopy } from '@/lib/pricing'
-import { SIDE_LABELS } from '@/lib/orders'
+import { colorModeLabel, SIDE_LABELS } from '@/lib/orders'
 import { formatDateTimeDot } from '@/lib/format'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
@@ -204,6 +204,10 @@ export interface PreviewConfig {
   selectedPages: number[] | null
   copies: number
   side: PrintSide
+  pageType: PaperSize
+  colorMode: ColorMode
+  /** Live tariff rate the estimate was priced at. */
+  rate: number
   scheduledFor: Date | null
   location: PrintLocation | null
   estimate: number
@@ -290,6 +294,12 @@ export function PrintPreview({
                 <dd className="font-bold text-ink">{SIDE_LABELS[config.side]}</dd>
               </div>
               <div className="flex items-baseline justify-between gap-4">
+                <dt className="font-medium text-muted">Paper</dt>
+                <dd className="font-bold text-ink">
+                  {config.pageType} • {colorModeLabel(config.colorMode)}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-4">
                 <dt className="font-medium text-muted">Total sheets</dt>
                 <dd className="font-bold text-ink">{sheets}</dd>
               </div>
@@ -317,7 +327,7 @@ export function PrintPreview({
                 </span>
               </div>
               <p className="mt-1.5 text-[11.5px] font-medium text-muted">
-                {rateLabel(config.side)}
+                {rateLabel(config.rate, config.side)}
               </p>
             </div>
 

@@ -1,16 +1,22 @@
 import { FlipHorizontal, FileText, Leaf } from 'lucide-react'
 import { Sheet } from '@/components/ui/Sheet'
-import { PRICE_TABLE } from '@/lib/pricing'
+import { useTariff } from '@/hooks/useTariff'
 import { useDesktop } from '@/hooks/useMediaQuery'
 
 /** Print Rates sheet (Profile → Print Rates): full 12-row size×type×side table. */
 export function RatesSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const desktop = useDesktop()
+  const { prices, loaded } = useTariff()
 
   return (
     <Sheet open={open} onClose={onClose} side={desktop ? 'right' : 'bottom'} title="Print Rates">
       <div className="flex flex-col gap-1">
-        {PRICE_TABLE.map((row) => {
+        {prices.length === 0 && (
+          <p className="py-3 text-[13.5px] font-semibold text-muted">
+            {loaded ? 'No print rates set yet.' : 'Loading rates…'}
+          </p>
+        )}
+        {prices.map((row) => {
           const isDouble = row.side === 'double'
           const label = `${row.size} • ${row.type === 'colour' ? 'Colour' : 'B&W'} • ${
             isDouble ? 'Double-sided' : 'Single-sided'

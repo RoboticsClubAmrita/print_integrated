@@ -16,13 +16,13 @@ import {
   type StoredFile,
 } from '@/services/fileService'
 import { placeOrder } from '@/services/orderService'
-import { printCost } from '@/lib/pricing'
+import { printCost, rateFor } from '@/lib/pricing'
 import { delay } from '@/lib/delay'
 import { useAppStore, activeOrders, totalDue, DEMO_JOB_ID } from '@/store/appStore'
 import { DemoHint } from '@/components/app/DemoHint'
 import { showSuccess, toast } from '@/store/uiStore'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
-import type { PrintSide } from '@/types'
+import type { ColorMode, PaperSize, PrintSide } from '@/types'
 
 /** Minimum time the upload overlay stays up so its staged captions are readable. */
 const UPLOAD_OVERLAY_MIN_MS = 2400
@@ -40,6 +40,9 @@ export default function NewOrderPage() {
   const setDemoMode = useAppStore((s) => s.setDemoMode)
   const injectDemoOrder = useAppStore((s) => s.injectDemoOrder)
   const removeDemoOrder = useAppStore((s) => s.removeDemoOrder)
+  const prices = useAppStore((s) => s.prices)
+  const pricesLoaded = useAppStore((s) => s.pricesLoaded)
+  const loadPrices = useAppStore((s) => s.loadPrices)
   const [demoHintDismissed, setDemoHintDismissed] = useState(false)
 
   const [fileId, setFileId] = useState<string | null>(null)
@@ -47,11 +50,21 @@ export default function NewOrderPage() {
   const [totalPages, setTotalPages] = useState<number | null>(null)
   const [detecting, setDetecting] = useState(false)
   const [side, setSide] = useState<PrintSide>('SINGLE')
+  const [pageType, setPageType] = useState<PaperSize>('A4')
+  const [colorMode, setColorMode] = useState<ColorMode>('BW')
   const [selectedPages, setSelectedPages] = useState<number[] | null>(null)
   const [copies, setCopies] = useState(1)
   const [scheduledFor, setScheduledFor] = useState<Date | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [placing, setPlacing] = useState(false)
+
+  // Rates are re-read every time the page opens, so a price the admin just
+  // changed in Pricing & Rules is what this order is quoted at.
+  useEffect(() => {
+    loadPrices().catch(() => {
+      toast('Could not load print rates', 'Check your connection and reopen this page.', 'warning')
+    })
+  }, [loadPrices])
 
   const stored = fileId ? (getFile(fileId) ?? null) : null
 
@@ -136,10 +149,15 @@ export default function NewOrderPage() {
   }
 
   const selectedPageCount = selectedPages ? selectedPages.length : (totalPages ?? 0)
-  const estimate = printCost({ pages: selectedPageCount, copies, side })
+  // The live tariff decides the price; a combination the admin hasn't priced
+  // has no rate, and the backend would refuse it, so it can't be submitted.
+  const rate = rateFor(prices, pageType, colorMode, side)
+  const estimate = rate === null ? 0 : printCost({ pages: selectedPageCount, copies, side, rate })
+  const unpriced = pricesLoaded && rate === null
   const selectedLocation = locations.find((l) => l.id === selectedLocationId) ?? null
 
-  const canSubmit = !!stored && totalPages !== null && !detecting && !!selectedLocationId
+  const canSubmit =
+    !!stored && totalPages !== null && !detecting && !!selectedLocationId && rate !== null
 
   const previewConfig: PreviewConfig | null =
     stored && totalPages !== null
@@ -149,6 +167,9 @@ export default function NewOrderPage() {
           selectedPages,
           copies,
           side,
+          pageType,
+          colorMode,
+          rate: rate ?? 0,
           scheduledFor,
           location: selectedLocation,
           estimate,
@@ -178,14 +199,14 @@ export default function NewOrderPage() {
           totalDocPages: totalPages,
           copies,
           side,
-          colorMode: 'BW',
-          pageType: 'A4',
+          colorMode,
+          pageType,
           selectedPages,
           createdAt: new Date().toISOString(),
           scheduleType: scheduledFor ? 'SCHEDULED' : 'NOW',
           scheduledFor: scheduledFor ? scheduledFor.toISOString() : null,
           status: 'PENDING',
-          costPerPage: 0,
+          costPerPage: rate ?? 0,
           printCost: estimate,
           balanceApplied: 0,
           totalCost: estimate,
@@ -219,6 +240,8 @@ export default function NewOrderPage() {
         selectedPages,
         copies,
         side,
+        pageType,
+        colorMode,
         scheduledFor: scheduledFor ? scheduledFor.toISOString() : null,
         locationId: selectedLocationId,
         locationName: selectedLocation?.name ?? null,
@@ -331,6 +354,10 @@ export default function NewOrderPage() {
               <ConfigCard
                 side={side}
                 onSideChange={setSide}
+                pageType={pageType}
+                onPageTypeChange={setPageType}
+                colorMode={colorMode}
+                onColorModeChange={setColorMode}
                 totalPages={totalPages}
                 detecting={detecting}
                 selectedPages={selectedPages}
@@ -355,6 +382,10 @@ export default function NewOrderPage() {
                 pages={selectedPageCount}
                 copies={copies}
                 side={side}
+                pageType={pageType}
+                colorMode={colorMode}
+                rate={rate}
+                unpriced={unpriced}
                 estimate={estimate}
                 disabled={!canSubmit}
                 loading={false}
