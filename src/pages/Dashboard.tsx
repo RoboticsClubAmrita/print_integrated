@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useJobEvents } from '../hooks/useJobEvents';
 import { useNavigate } from 'react-router-dom';
 import {
     AlertTriangle,
@@ -58,15 +59,19 @@ const Dashboard: React.FC = () => {
         fetchCurrentUser();
     }, []);
 
-    const loadAll = () => {
-        setLoadingJobs(true);
+    // Keep the lanes and stack occupancy live: a job changing status also
+    // frees or fills a stack, so both are refetched, silently.
+    useJobEvents(() => { loadAll({ silent: true }); });
+
+    const loadAll = ({ silent = false }: { silent?: boolean } = {}) => {
+        if (!silent) setLoadingJobs(true);
         jobService
             .getAll()
             .then((data) => setJobs(parseJobs(data)))
             .catch((err) => console.error('Failed to load jobs', err))
             .finally(() => setLoadingJobs(false));
 
-        setLoadingFleet(true);
+        if (!silent) setLoadingFleet(true);
         (async () => {
             try {
                 const locData = await hardwareService.getLocations();
@@ -87,7 +92,7 @@ const Dashboard: React.FC = () => {
                 setFleet(rows);
             } catch (err) {
                 console.error('Failed to load fleet', err);
-                setFleet([]);
+                if (!silent) setFleet([]);
             } finally {
                 setLoadingFleet(false);
             }
@@ -177,7 +182,7 @@ const Dashboard: React.FC = () => {
                 title="Overview"
                 meta={`${dateLine} · ${liveCount} LIVE ${liveCount === 1 ? 'JOB' : 'JOBS'} · PRESS ${pressRunning ? 'RUNNING' : 'STANDING BY'}`}
                 actions={
-                    <button onClick={loadAll} disabled={loadingJobs} className="btn-ghost">
+                    <button onClick={() => loadAll()} disabled={loadingJobs} className="btn-ghost">
                         <RefreshCw size={15} className={loadingJobs ? 'animate-spin' : ''} />
                         Refresh
                     </button>

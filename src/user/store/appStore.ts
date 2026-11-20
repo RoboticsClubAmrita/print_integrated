@@ -109,12 +109,21 @@ function hydrate() {
   return { ...base, session, user }
 }
 
+/**
+ * Bumped by every `refresh()` call. Polls, live-feed events and post-mutation
+ * refreshes overlap; without this, a slow poll that started *before* a
+ * collection could land *after* the post-collection refresh and put the order
+ * back to COMPLETED — with its Request Collection button.
+ */
+let refreshSeq = 0
+
 export const useAppStore = create<AppState>()((set, get) => ({
   ...hydrate(),
 
   refresh: async () => {
     const user = get().user
     if (!user) return
+    const seq = ++refreshSeq
     const locations = get().locations
     // Reads are safe to repeat, so a dropped connection retries rather than
     // leaving the app showing an empty order list as if nothing were there.
@@ -130,6 +139,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
     const penalties = (penaltiesData?.penalties ?? []).map(penaltyToPenalty)
     // Current user may have changed (or logged out) while the requests were in flight.
     if (get().user?.id !== user.id) return
+    // A newer refresh has started since this one; its answer is fresher.
+    if (seq !== refreshSeq) return
     set({ orders, penalties })
   },
 

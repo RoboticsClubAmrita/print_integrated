@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useJobEvents } from '../hooks/useJobEvents';
 import { hardwareService, jobService, userService } from '../services/api';
 import {
     ArrowRightCircle,
@@ -85,6 +86,12 @@ const OrdersPage: React.FC = () => {
     const [statusSaving, setStatusSaving] = useState(false);
 
     useEffect(() => { loadInitialData(); }, []);
+
+    // Orders move on from the print side, the payment webhook and the user's
+    // own app — none of which this page triggers. Refetch the job list (only;
+    // users and hubs rarely change) whenever the backend announces a change,
+    // without the full-page spinner.
+    useJobEvents(() => { void reloadJobs(); });
 
     const statusRequirement = statusTarget ? STATUS_REQUIRES[statusTarget] : null;
     const canConfirmStatus = !!statusTarget && (
@@ -177,6 +184,18 @@ const OrdersPage: React.FC = () => {
     };
 
     useEffect(() => { applyFilters(); }, [jobs, statusFilter, userFilter, locationFilter, searchQuery, dateFrom, dateTo]);
+
+    const reloadJobs = async () => {
+        try {
+            const jobData = await jobService.getAll();
+            const list: any[] = jobData?.DATA?.jobs || jobData?.DATA || jobData?.jobs || (Array.isArray(jobData) ? jobData : []);
+            setJobs(list);
+            // An open details drawer shows a snapshot; keep it in step too.
+            setSelectedJob((prev: any) => (prev ? list.find((j) => j._id === prev._id) ?? prev : prev));
+        } catch (err) {
+            console.error('Failed to refresh orders', err);
+        }
+    };
 
     const loadInitialData = async () => {
         setLoading(true);

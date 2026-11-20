@@ -214,12 +214,27 @@ export async function confirmCollection(
   jobId: string,
   otp: string,
 ): Promise<{ error: string | null; stackName?: string }> {
+  let stackName: string | undefined
   try {
     const res = await realJobs.collectVerify({ jobId, otp })
     const data = res?.DATA ?? res
-    await useAppStore.getState().refresh()
-    return { error: null, stackName: data?.stackName ?? undefined }
+    stackName = data?.stackName || undefined
   } catch (err) {
     return { error: apiErrorMessage(err, 'Invalid code. Try again.') }
   }
+
+  // The backend has committed the collection. Show it now rather than after
+  // the refetch: a slow or failed refetch must neither keep the "Request
+  // Collection" button on screen nor be reported to the user as a bad code.
+  useAppStore.setState((s) => ({
+    orders: s.orders.map((o) =>
+      o.jobId === jobId
+        ? { ...o, status: 'COLLECTED' as const, collectedStackName: stackName ?? o.stackName ?? null }
+        : o,
+    ),
+  }))
+  useAppStore.getState().refresh().catch(() => {
+    // The live feed / next poll reconciles; the collection itself succeeded.
+  })
+  return { error: null, stackName }
 }

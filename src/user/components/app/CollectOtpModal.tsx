@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Truck } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
@@ -10,7 +10,7 @@ import { showSuccess } from '@/store/uiStore'
 /**
  * Collection confirmation (order_detail_screen.dart): requests a fresh
  * code whenever it opens, verifies on submit, then shows the
- * "Collection Confirmed" success overlay.
+ * "Collection Confirmed" success overlay naming the stack to collect from.
  */
 export function CollectOtpModal({
   open,
@@ -28,14 +28,26 @@ export function CollectOtpModal({
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
+  // Keyed on the job id, not the order object: every refresh (poll, live
+  // update, penalty tick) hands this modal a new `order` object for the same
+  // job, and re-running would email a fresh code that silently invalidates
+  // the one the user is typing — "Invalid OTP", button still there.
+  const jobId = order?.jobId
+  const orderRef = useRef(order)
   useEffect(() => {
-    if (!open || !order) return
+    orderRef.current = order
+  })
+  useEffect(() => {
+    const current = orderRef.current
+    if (!open || !jobId || !current) return
     setCode('')
     setError(null)
-    requestCollection(order).then((r) => {
-      setEmail(r.email)
-    })
-  }, [open, order])
+    requestCollection(current)
+      .then((r) => setEmail(r.email))
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Could not send the code. Try again.')
+      })
+  }, [open, jobId])
 
   const verify = async (otp: string) => {
     if (!order || otp.length < 4) return
@@ -48,8 +60,15 @@ export function CollectOtpModal({
       return
     }
     onClose()
-    showSuccess({ title: 'Collection Confirmed', subtitle: 'Enjoy your prints!', icon: 'package' })
-    onCollected(result.stackName!)
+    const stackName = result.stackName ?? order.stackName ?? null
+    showSuccess({
+      title: 'Collection Confirmed',
+      subtitle: stackName
+        ? `Collect your prints from Stack ${stackName}.`
+        : 'Enjoy your prints!',
+      icon: 'package',
+    })
+    onCollected(stackName ?? '')
   }
 
   return (
