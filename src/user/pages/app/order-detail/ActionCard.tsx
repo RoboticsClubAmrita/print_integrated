@@ -4,7 +4,7 @@ import type { Order } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { CollectOtpModal } from '@/components/app/CollectOtpModal'
 import { PendingDuesDialog } from '@/components/app/PendingDuesDialog'
-import { orderCost } from '@/lib/orders'
+import { orderCost, stackLabel } from '@/lib/orders'
 import { rupees } from '@/lib/pricing'
 import { formatDateTimeDot } from '@/lib/format'
 import { payOrder } from '@/services/billingService'
@@ -111,7 +111,7 @@ export function ActionCard({ order }: { order: Order }) {
         <div className="flex flex-col gap-3">
           {order.stackName && (
             <p className="text-[13.5px] font-semibold text-muted text-center">
-              Collect from Stack {order.stackName}
+              Collect from {stackLabel(order.stackName)}
             </p>
           )}
           <Button fullWidth onClick={requestCollection}>
@@ -125,7 +125,7 @@ export function ActionCard({ order }: { order: Order }) {
           <PackageCheck size={20} className="text-success shrink-0" strokeWidth={2} />
           <p className="text-[14px] font-bold text-ink">
             {order.collectedStackName
-              ? `Collected from Stack ${order.collectedStackName} — thank you!`
+              ? `Collected from ${stackLabel(order.collectedStackName)} — thank you!`
               : 'Collected — thank you!'}
           </p>
         </div>

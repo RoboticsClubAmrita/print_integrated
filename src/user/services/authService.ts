@@ -55,16 +55,45 @@ export interface RegistrationDraft {
   password: string
 }
 
-/** Starts pending-until-verified signup. Returns the school-derived email on success. */
+export type SignupRole = 'STUDENT' | 'FACULTY'
+
+/** Mirrors the backend's staffEmailIssue (authModule.js) so the form says the same thing first. */
+export function staffEmailIssue(rawEmail: string): string | null {
+  const email = rawEmail.trim().toLowerCase()
+  if (!email) return 'Amrita email is required for staff'
+  const at = email.lastIndexOf('@')
+  if (at <= 0 || at === email.length - 1) return 'Enter a valid email address'
+  const domain = email.slice(at + 1)
+  if (domain !== 'amrita.edu' && !domain.endsWith('.amrita.edu')) {
+    return 'Use your Amrita staff email (…@amrita.edu)'
+  }
+  if (domain === 'students.amrita.edu' || domain.endsWith('.students.amrita.edu')) {
+    return 'That is a student email. Students should sign up with their roll number.'
+  }
+  return null
+}
+
+/**
+ * Starts pending-until-verified signup. A student's email is derived from the
+ * roll number by the backend; staff (role FACULTY) give their own.
+ * Returns the address the code was sent to.
+ */
 export async function register(
-  draft: RegistrationDraft,
+  draft: RegistrationDraft & { role?: SignupRole; email?: string },
 ): Promise<{ error: string | null; email?: string }> {
-  const { name, collegeId, phone, password } = draft
+  const { name, collegeId, phone, password, role = 'STUDENT', email } = draft
   if (!name.trim() || !collegeId.trim() || !phone.trim() || !password) {
     return { error: MSG.registerEmpty }
   }
   try {
-    const data = await realAuth.registerStart({ collegeId: collegeId.trim(), name: name.trim(), phone: phone.trim(), password })
+    const data = await realAuth.registerStart({
+      collegeId: collegeId.trim(),
+      name: name.trim(),
+      phone: phone.trim(),
+      password,
+      role,
+      ...(role === 'FACULTY' && email ? { email: email.trim() } : {}),
+    })
     return { error: null, email: data?.email }
   } catch (err) {
     return { error: apiErrorMessage(err, 'Could not start registration.') }
@@ -170,4 +199,13 @@ export async function verifyEmailChange(otp: string): Promise<string | null> {
   } catch (err) {
     return apiErrorMessage(err, INVALID_OTP)
   }
+}
+
+export type DeliveryStatus = 'SENT' | 'BOUNCED' | 'UNKNOWN'
+
+/** Whether the sign-up code email has come back "mailbox doesn't exist". */
+export async function getRegistrationStatus(email: string): Promise<DeliveryStatus> {
+  const data = await realAuth.registerStatus(email)
+  const status = data?.deliveryStatus
+  return status === 'SENT' || status === 'BOUNCED' ? status : 'UNKNOWN'
 }

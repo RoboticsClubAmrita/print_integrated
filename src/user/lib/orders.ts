@@ -128,3 +128,9 @@ export function transitionNotification(
       return null
   }
 }
+
+/** "Stack A1" for a stack named "A1", but "Stack 2" (not "Stack Stack 2") for one already named "Stack 2". */
+export function stackLabel(name: string): string {
+  const trimmed = name.trim()
+  return /^stack\b/i.test(trimmed) ? trimmed : `Stack ${trimmed}`
+}

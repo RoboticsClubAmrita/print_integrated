@@ -25,6 +25,7 @@ export const logoutAllAPI = `${API}/auth/logout-all`;
 export const registerStartAPI = `${API}/auth/register/start`;
 export const registerVerifyAPI = `${API}/auth/register/verify`;
 export const registerResendAPI = `${API}/auth/register/resend`;
+export const registerStatusAPI = `${API}/auth/register/status`;
 export const forgotPasswordAPI = `${API}/auth/forgot-password`;
 export const resetPasswordAPI = `${API}/auth/reset-password`;
 export const verifyEmailAPI = `${API}/auth/verify-email`;
@@ -191,8 +192,8 @@ export const authService = {
             clearSession();
         }
     },
-    registerStart: async ({ collegeId, name, phone, password }) => {
-        const response = await api.post(registerStartAPI, { collegeId, name, phone, password });
+    registerStart: async ({ collegeId, name, phone, password, role, email }) => {
+        const response = await api.post(registerStartAPI, { collegeId, name, phone, password, role, email });
         return response.data?.DATA ?? response.data;
     },
     registerVerify: async ({ collegeId, email, otp }) => {
@@ -202,6 +203,10 @@ export const authService = {
         if (token) setToken(token);
         if (data?.user) setStoredUser(JSON.stringify(data.user));
         return data;
+    },
+    registerStatus: async (email) => {
+        const response = await api.get(registerStatusAPI, { params: { email } });
+        return response.data?.DATA ?? response.data;
     },
     registerResend: async ({ collegeId, email }) => {
         const response = await api.post(registerResendAPI, { collegeId, email });

@@ -6,6 +6,7 @@ import { OtpInput } from '@/components/ui/OtpInput'
 import type { Order } from '@/types'
 import { confirmCollection, requestCollection } from '@/services/orderService'
 import { showSuccess } from '@/store/uiStore'
+import { stackLabel } from '@/lib/orders'
 
 /**
  * Collection confirmation (order_detail_screen.dart): requests a fresh
@@ -64,7 +65,7 @@ export function CollectOtpModal({
     showSuccess({
       title: 'Collection Confirmed',
       subtitle: stackName
-        ? `Collect your prints from Stack ${stackName}.`
+        ? `Collect your prints from ${stackLabel(stackName)}.`
         : 'Enjoy your prints!',
       icon: 'package',
     })

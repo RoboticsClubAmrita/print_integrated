@@ -48,7 +48,15 @@ export declare const authService: {
     refresh: () => Promise<any>;
     logout: () => Promise<any>;
     logoutAll: () => Promise<any>;
-    registerStart: (data: { collegeId: string; name: string; phone: string; password: string }) => Promise<any>;
+    registerStart: (data: {
+        collegeId: string;
+        name: string;
+        phone: string;
+        password: string;
+        role?: 'STUDENT' | 'FACULTY';
+        email?: string;
+    }) => Promise<any>;
+    registerStatus: (email: string) => Promise<any>;
     registerVerify: (data: { collegeId?: string; email?: string; otp: string }) => Promise<any>;
     registerResend: (data: { collegeId?: string; email?: string }) => Promise<any>;
     forgotPassword: (email: string) => Promise<any>;
